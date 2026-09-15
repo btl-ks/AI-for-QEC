@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-qec"
+version = "0.1.0"
+description = "A lightweight AI for quantum error correction research scaffold."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=2.2"]
+matching = ["pymatching>=2.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ai_qec*"]
+
+[tool.ai_qec]
+default_config = "configs/experiment.smoke.yaml"

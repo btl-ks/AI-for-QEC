@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.ipynb_checkpoints/
+.DS_Store
+
+# Local agent tool state (not project source)
+.agents/
+.codex/
+.vscode/
+.claude/settings.local.json
+
+/runs/
+/datasets/
+/paper/releases/
+*.npz
+*.pt

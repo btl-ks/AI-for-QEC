@@ -1,0 +1,36 @@
+# Only the project-local toy synthetic baseline is available in Phase 0.
+schema_version: 1
+experiment: {name: weak_crosstalk_example, title: "Project-local toy synthetic baseline"}
+reproducibility: {seeds: [42], deterministic: true, save_environment: true, save_git_commit: true, require_clean_worktree: true}
+qec: {code: surface_code, distance: 5, rounds: 8, task: memory}
+noise:
+  target: {name: crosstalk, values: [0.0, 0.001, 0.005]}
+  nuisance:
+    depolarizing: {distribution: uniform, min: 0.002, max: 0.01}
+    measurement: {distribution: uniform, min: 0.001, max: 0.005}
+  controls: {match_total_syndrome_density: true}
+data:
+  generator: toy_synthetic
+  train_samples: 1200
+  validation_samples: 300
+  test_samples: 300
+  dataset_id: weak_crosstalk_example
+  output_dir: datasets
+  batch_size: 256
+  preprocessing: {representation: detector_summary}
+model: {implementation: linear_detector_summary_baseline}
+training: {trainer: multitask_ridge, optimizer: {name: ridge, weight_decay: 0.001}}
+outputs: {runs_root: runs}
+flow:
+  - id: generate_data
+    script: scripts/generate_data.py
+    args: [--config, "${CONFIG}", --project-root, "${PROJECT_ROOT}"]
+    outputs: [{path: "${DATASET_DIR}/dataset_manifest.json", artifact_type: dataset_manifest, schema_version: 1}]
+  - id: train
+    script: scripts/train.py
+    args: [--config, "${CONFIG}", --run-dir, "${RUN_DIR}", --project-root, "${PROJECT_ROOT}"]
+    outputs: [{path: "${RUN_DIR}/checkpoints/best.npz", artifact_type: checkpoint}]
+  - id: evaluate
+    script: scripts/evaluate.py
+    args: [--config, "${CONFIG}", --run-dir, "${RUN_DIR}", --checkpoint, "${RUN_DIR}/checkpoints/best.npz", --project-root, "${PROJECT_ROOT}"]
+    outputs: [{path: "${RUN_DIR}/metrics.json", artifact_type: json}]

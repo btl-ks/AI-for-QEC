@@ -1,0 +1,105 @@
+"""Evaluation of a syndrome-clamped RBM decoder on raw toric test data."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+import time
+
+import numpy as np
+
+from ai_qec.data.datasets.toric_dataset import load_toric_split, validate_toric_dataset
+from ai_qec.models.decoders.generative.rbm_decoder import RBMGibbsDecoder
+from ai_qec.models.decoders.protocol import DecodeRequest
+from ai_qec.models.registry import load_model
+from ai_qec.qec.codes.toric_code import ToricCode
+from ai_qec.utils.config import data_output_dir, first_seed, write_json
+from ai_qec.utils.reproducibility import code_version
+
+
+def evaluate_toric_rbm(
+    config: dict[str, Any],
+    project_root: str | Path,
+    run_dir: str | Path,
+    checkpoint: str | Path,
+    split: str = "test",
+) -> dict[str, float]:
+    """Decode every requested split sample and persist traceable predictions."""
+    root = Path(project_root)
+    dataset_dir = data_output_dir(config, root)
+    manifest = validate_toric_dataset(dataset_dir, config)
+    dataset = load_toric_split(dataset_dir, split)
+    model, metadata = load_model(config, str(checkpoint))
+    expected = {
+        "model_implementation": config["model"]["implementation"],
+        "model_backend": "torch",
+        "visible_order": ["physical_error", "syndrome"],
+        "dataset_config_hash": manifest["config_hash"],
+        "dataset_generation_hash": manifest["generation_hash"],
+        "code_version": code_version(root),
+    }
+    for key, value in expected.items():
+        if metadata.get(key) != value:
+            raise ValueError(f"Checkpoint identity mismatch for {key}")
+
+    code = ToricCode(distance=dataset.lattice_size)
+    decoder_cfg = config["training"]["decoder"]
+    decoder = RBMGibbsDecoder(
+        model,
+        code,
+        burn_in=int(decoder_cfg["burn_in"]),
+        max_steps=int(decoder_cfg["max_steps"]),
+        parallel_chains=int(decoder_cfg.get("parallel_chains", 1)),
+        device=config["training"].get("device", "cpu"),
+    )
+    recoveries = np.zeros_like(dataset.physical_error, dtype=np.uint8)
+    recovery_valid = np.zeros(len(dataset.physical_error), dtype=np.uint8)
+    timed_out = np.zeros(len(dataset.physical_error), dtype=np.uint8)
+    gibbs_steps = np.zeros(len(dataset.physical_error), dtype=np.int32)
+    decoder_latency_ms = np.zeros(len(dataset.physical_error), dtype=np.float64)
+    logical_failure = np.ones(len(dataset.physical_error), dtype=np.uint8)
+    for index, (error, syndrome) in enumerate(zip(dataset.physical_error, dataset.syndrome, strict=True)):
+        started = time.perf_counter_ns()
+        result = decoder.decode(DecodeRequest(syndrome, dataset.p_error), rng=np.random.default_rng(first_seed(config) + 1_000_000 + index))
+        decoder_latency_ms[index] = (time.perf_counter_ns() - started) / 1e6
+        gibbs_steps[index] = result.steps
+        if result.recovery is None:
+            timed_out[index] = 1
+            continue
+        recoveries[index] = result.recovery
+        recovery_valid[index] = 1
+        logical_failure[index] = np.uint8(code.logical_failure(error[None, :], result.recovery[None, :])[0])
+
+    metrics = {
+        f"{split}_rbm_logical_error_rate": float(np.mean(logical_failure)),
+        f"{split}_rbm_timeout_rate": float(np.mean(timed_out)),
+        f"{split}_rbm_valid_recovery_rate": float(np.mean(recovery_valid)),
+        f"{split}_rbm_mean_gibbs_steps": float(np.mean(gibbs_steps)),
+        f"{split}_rbm_p95_gibbs_steps": float(np.percentile(gibbs_steps, 95)),
+        f"{split}_rbm_decoder_latency_mean_ms": float(np.mean(decoder_latency_ms)),
+        f"{split}_rbm_decoder_latency_p50_ms": float(np.percentile(decoder_latency_ms, 50)),
+        f"{split}_rbm_decoder_latency_p95_ms": float(np.percentile(decoder_latency_ms, 95)),
+    }
+    run_path = Path(run_dir)
+    predictions_dir = run_path / "predictions"
+    predictions_dir.mkdir(parents=True, exist_ok=True)
+    with (predictions_dir / "toric_rbm_eval.npz").open("wb") as handle:
+        np.savez_compressed(
+            handle,
+            split=np.asarray(split),
+            dataset_id=np.asarray(dataset.dataset_id),
+            lattice_size=np.asarray(dataset.lattice_size),
+            p_error=np.asarray(dataset.p_error),
+            parallel_chains=np.asarray(decoder.parallel_chains),
+            device=np.asarray(decoder.device),
+            physical_error=dataset.physical_error,
+            syndrome=dataset.syndrome,
+            recovery=recoveries,
+            recovery_valid=recovery_valid,
+            timed_out=timed_out,
+            gibbs_steps=gibbs_steps,
+            decoder_latency_ms=decoder_latency_ms,
+            logical_failure=logical_failure,
+        )
+    write_json(run_path / "metrics.json", {"metrics": metrics})
+    return metrics

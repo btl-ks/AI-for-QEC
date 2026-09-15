@@ -1,0 +1,68 @@
+# Project-local toy synthetic baseline. It is plumbing only, not a physics result.
+schema_version: 1
+experiment:
+  name: weak_crosstalk_smoke
+  title: "Project-local toy synthetic baseline"
+  description: "A small synthetic plumbing run; it makes no circuit-level QEC claim."
+  owner: researcher
+  tags: [ai-qec, toy, smoke]
+topic: {direction: D2, subtopic: D2.2, name: weak_specific_error_learning}
+reproducibility: {seeds: [11], deterministic: true, save_environment: true, save_git_commit: true, require_clean_worktree: false}
+qec: {code: surface_code, distance: 5, rounds: 8, task: memory}
+noise:
+  target: {name: crosstalk, values: [0.0, 0.0005, 0.001, 0.002, 0.005]}
+  nuisance:
+    depolarizing: {distribution: uniform, min: 0.002, max: 0.010}
+    measurement: {distribution: uniform, min: 0.001, max: 0.005}
+  controls: {match_total_syndrome_density: true}
+data:
+  generator: toy_synthetic
+  train_samples: 1200
+  validation_samples: 300
+  test_samples: 300
+  dataset_id: weak_crosstalk_smoke
+  output_dir: datasets
+  batch_size: 256
+  synthetic_crosstalk_gain: 3.0
+  preprocessing: {representation: detector_summary}
+model: {implementation: linear_detector_summary_baseline}
+training: {trainer: multitask_ridge, optimizer: {name: ridge, weight_decay: 0.001}}
+outputs: {runs_root: runs}
+flow:
+  - id: generate_data
+    script: scripts/generate_data.py
+    args: [--config, "${CONFIG}", --project-root, "${PROJECT_ROOT}"]
+    outputs:
+      - {path: "${DATASET_DIR}/dataset_manifest.json", artifact_type: dataset_manifest, schema_version: 1}
+  - id: train
+    script: scripts/train.py
+    args: [--config, "${CONFIG}", --run-dir, "${RUN_DIR}", --project-root, "${PROJECT_ROOT}"]
+    outputs:
+      - {path: "${RUN_DIR}/checkpoints/best.npz", artifact_type: checkpoint}
+      - {path: "${RUN_DIR}/checkpoints/last.npz", artifact_type: checkpoint}
+      - {path: "${RUN_DIR}/training_summary.json", artifact_type: json}
+  - id: evaluate
+    script: scripts/evaluate.py
+    args: [--config, "${CONFIG}", --run-dir, "${RUN_DIR}", --checkpoint, "${RUN_DIR}/checkpoints/best.npz", --project-root, "${PROJECT_ROOT}"]
+    outputs:
+      - {path: "${RUN_DIR}/predictions/paper_eval.npz", artifact_type: predictions}
+      - {path: "${RUN_DIR}/metrics.json", artifact_type: json}
+  - id: benchmark
+    script: scripts/benchmark.py
+    args: [--config, "${CONFIG}", --run-dir, "${RUN_DIR}", --project-root, "${PROJECT_ROOT}"]
+    outputs:
+      - {path: "${RUN_DIR}/metrics.json", artifact_type: json}
+      - {path: "${RUN_DIR}/benchmark_report.json", artifact_type: json}
+paper_export:
+  enabled: true
+  package_name: weak_crosstalk_qec_toy
+  scope: "Recompute test target-regression metrics for the project-local toy synthetic baseline."
+  public_config_keys: [experiment, reproducibility, qec, noise, data, model, training]
+  include:
+    - {from: ai_qec/models/decoders/transformer/model.py, to: src/model.py}
+    - {from: ai_qec/models/heads/regression.py, to: src/regression_head.py}
+    - {from: paper/templates/reproduce.py, to: reproduce.py}
+    - {from: "${RUN_DIR}/checkpoints/best.npz", to: checkpoint/best.npz}
+    - {from: "${RUN_DIR}/predictions/paper_eval.npz", to: data/paper_eval.npz}
+    - {from: "${RUN_DIR}/metrics.json", to: results/metrics.json}
+  reproduce_command: "python reproduce.py"

@@ -1,0 +1,13 @@
+# Normalize text to LF so WSL, Linux, and Windows checkouts stay identical.
+* text=auto eol=lf
+
+# Binary research artifacts: never diff or normalize.
+*.npz binary
+*.npy binary
+*.pt binary
+*.pth binary
+*.ckpt binary
+*.h5 binary
+*.zip binary
+*.png binary
+*.pdf binary
