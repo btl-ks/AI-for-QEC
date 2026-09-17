@@ -98,7 +98,16 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [x] **P0.12 Runner 生命周期与状态机**：runner 只执行 P0.4 产出的 resolved plan；run ID 使用高精度时间/UUID + config hash，目标已存在时默认拒绝。写盘前验证完整 flow、`--only/--skip` ID 与依赖；零步骤为错误，部分执行标为 `partial`。run 创建时即写 manifest，并在每次状态变更时原子更新；捕获异常/中断为 `failed`/`interrupted`；按 resolved step output contract 校验 path/type/non-empty/schema/hash，记录 skipped/disabled 原因。
 - [x] **P0.13 诚信回归测试**：新增真正调用 `run_experiment.py` 的端到端 smoke；覆盖 unsafe export、unknown/unconsumed config、未实现 capability、zero-step、run collision、stale dataset、multi-seed、缺失 backend 字段、损坏 NPZ、异常终态和 paper package 闭包。测试不得只检查文件存在，还要检查身份、schema 与关键语义。
 
-**内部依赖**：P0.0 为首要且可独立交付的安全热修复；P0.3 + P0.4 → P0.11 → P0.7 → P0.9 → P0.10；P0.4 → P0.5/P0.12；P0.7 + P0.12 → P0.8；P0.6 在 P1 前完成；P0.13 在其覆盖的任务完成后统一收口。
+> 2026-09-17 追加（P0.14–P0.19）：Torlai–Melko 论文规模复现暴露的中断恢复与身份问题。P0.14 补齐 P0.7 的“按生成规格命名”，P0.15 补齐 P0.12 在 Notebook/进程被杀路径上的中断收敛；在它们完成前 Phase 0 不视为退出。
+
+- [ ] **P0.14 数据集身份只取生成规格**：当前 `generation_hash` 包含整份 run 配置的 `config_hash`，实验名称、训练或解码参数（如 `training.decoder.max_steps`）一变就生成新的数据集目录，导致只改解码设置的 run 找不到已有数据。身份改为只覆盖生成规格（code、noise、data 的样本数与生成器版本、seed、batch 策略及有效噪声参数）；训练、解码与实验元数据不得进入数据身份。给出既有数据集目录的兼容或迁移方案，旧 run 的引用必须仍可校验；测试“仅改训练/解码/实验名”时复用同一数据集，改任一生成字段时身份不同。
+- [ ] **P0.15 run 存活检测与中断收敛**：run 创建时在 manifest 记录进程号、主机名与启动标识；Notebook（`RunRecord`）与 runner 在启动新 run 或显式清理时，把进程已不存在的 `running` run 标为 `interrupted`，记录中断时所在阶段，不得长期停留在 `running`。`Ctrl+C` 已记为 `failed`，本任务覆盖 SIGKILL、断电、关机与休眠后进程丢失等路径；用被强制结束的子进程做回归测试。
+- [ ] **P0.16 训练断点续跑**：每个 epoch 结束时原子写入续跑状态（模型、优化器、数据洗牌与 CD 采样两个随机数生成器的状态、训练历史、当前 best 及其 epoch），并在 manifest 记录其 hash。续跑前校验配置、数据集身份与代码版本一致，从下一个 epoch 继续。测试：任意 epoch 处中断再续跑，得到的参数、训练历史与 `best.pt` 必须与不中断时逐位一致。
+- [ ] **P0.17 解码断点续跑**：解码阶段每 N 条样本原子保存部分预测（恢复链、有效标记、步数、延迟与失败标记）；续跑从第一个未完成的样本继续。每条样本使用独立随机流，续跑结果必须与不中断时逐位一致（延迟字段除外），并有测试。
+- [ ] **P0.18 续跑 run 的语义**（待决策 DEC-7）：明确续跑是在原 run 内继续，还是新建 run 并以 `resumed_from` 指向被中断的 run；两种方式都不得重新生成数据集（依赖 P0.14），且 manifest 必须保留完整的中断与续跑时间线。若选择在原 run 内继续，只允许状态为 `interrupted`、配置 hash 与代码版本均一致的 run，并同步修订“每次执行分配唯一 run ID”的约定。
+- [ ] **P0.19 阶段产物不可变**：当前 benchmark 阶段把指标合并写回 evaluate 阶段已记录 hash 的 `metrics.json`，使 evaluate 记录的 hash 必然失效。任何阶段不得修改前序阶段已登记的产物；需要汇总时写入新文件或由 `finish` 生成汇总。run 结束时校验所有阶段登记的产物 hash 与磁盘一致，不一致即判定失败，并有测试。
+
+**内部依赖**：P0.0 为首要且可独立交付的安全热修复；P0.3 + P0.4 → P0.11 → P0.7 → P0.9 → P0.10；P0.4 → P0.5/P0.12；P0.7 + P0.12 → P0.8；P0.6 在 P1 前完成；P0.14 → P0.16/P0.17；P0.15 + DEC-7 → P0.18 → P0.16/P0.17；P0.19 可独立推进；P0.13 在其覆盖的任务（含 P0.14–P0.19）完成后统一收口。
 
 **Exit Criteria**
 - unsafe `--output` 不可能删除项目、run/data 根或未知目录；导出失败不损坏既有 release。
@@ -109,6 +118,9 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - 同 config+seed 在不同生成 batch size 下内容一致；若作为临时例外，则身份 hash 必须不同且 manifest 明示原因。
 - 多 seed 产生独立 child runs 与父级汇总，或在未实现时拒绝多 seed 配置。
 - README、配置注释、manifest、metric 名和报告中的 smoke 结果统一标注为 `project-local toy synthetic baseline`。
+- 只改训练、解码或实验元数据的 run 复用同一数据集；进程被强制结束后，run 会被收敛为 `interrupted` 而非停留在 `running`。
+- 训练与解码在任意中断点续跑后，结果与不中断时逐位一致（延迟字段除外），且续跑不重新生成数据；续跑的 run 关系按 DEC-7 记录在 manifest 中。
+- run 结束时，所有阶段登记的产物 hash 与磁盘文件一致。
 
 ---
 
@@ -268,6 +280,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 | DEC-4 | 代码维护者 | 占位模块保留还是移出 `ai_qec/` | 活动路径先 fail loudly；无近期调用方者移到 roadmap | P4.8 前；P0.3 不等待此决策 |
 | DEC-5 | 科研负责人 | D2.2 target 的采样/预测单位 | 优先评估固定参数的多-shot window/session；单-shot 作为对照假设 | P2.0 完成前 |
 | DEC-6 | 科研负责人 | crosstalk 对应的目标硬件、门和耦合场景 | 选择一个明确平台与门级场景，不先宣称跨硬件通用 | P2.1 开始前；决定引用与适用范围 |
+| DEC-7 | 平台负责人 | 被中断的 run 续跑时：在原 run 内继续，还是新建 run 并记录 `resumed_from` | 新建 run 并记录 `resumed_from`，保持“每次执行一个 run”的约定 | P0.16/P0.17 实现前 |
 
 ---
 
