@@ -63,7 +63,7 @@ paper/srcs/torlai_melko_2017.ipynb（程序入口与最上层逻辑；每个 L �
     ├── 数据生成循环：noise.sample_errors → code.syndrome → write_toric_split → validate_toric_dataset（Algorithm 1 第 1–2 行）
     ├── 训练循环：epoch/minibatch → RBM.contrastive_divergence_step → checkpoint
     ├── 解码循环：RBM.sample_hidden / sample_error → first_compatible_chain（Algorithm 1 第 3–8 行）
-    ├── benchmark 循环：ExactToricMWPMDecoder → build_toric_benchmark_report
+    ├── benchmark 循环：mwpm_reference_recoveries（精确 MWPM，超限时 PyMatching）→ build_toric_benchmark_report
     └── 结果表、Fig. 3/4 风格图、异常与局限说明
 ```
 
@@ -80,7 +80,8 @@ paper/srcs/torlai_melko_2017.ipynb（程序入口与最上层逻辑；每个 L �
 | Toric code | `ai_qec/qec/codes/toric_code.py`，已接入 code registry |
 | 数据 schema、生成与加载 | `ai_qec/data/datasets/toric_dataset.py`、`data/generators/toric_generator.py` |
 | RBM 模型与 Gibbs 解码 | `ai_qec/models/decoders/generative/` 提供模型与单步采样；`training/trainers/rbm.py` 提供 CD-k 单步更新和脚本入口复用的训练器，论文 Notebook 展开自己的上层循环 |
-| MWPM | `ai_qec/models/decoders/classical/mwpm.py`；当前无外部依赖的精确实现有 defect 上限，正式规模需要经过验证的 scalable matching 后端 |
+| MWPM | `ai_qec/models/decoders/classical/mwpm.py` 的精确实现有 defect 上限；`ai_qec/benchmarks/decoding/toric.py` 的 `mwpm_reference_recoveries` 对超过上限的 syndrome 改用 PyMatching（同为最小权重完美匹配），报告记录 `pymatching_fallback_shots` |
+| 复用已训练模型重新解码 | `ai_qec/utils/source_run.py`：按源 run 配置校验并引用其数据集，核对 `best.pt` 记录的哈希与训练数据集，并在共同步数预算内逐条核对解码结果；Notebook 通过 `REUSE_CHECKPOINT_FROM_RUN` 跳过训练 |
 | 逻辑失败率与论文 benchmark | `ai_qec/benchmarks/decoding/toric.py` |
 | 论文实验说明 | 本文档；`paper/docs/` 只保留 PDF |
 

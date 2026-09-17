@@ -1,6 +1,6 @@
 """Convenience imports for the Torlai–Melko experiment notebook."""
 
-from ai_qec.benchmarks.decoding.toric import build_toric_benchmark_report, write_benchmark_outputs
+from ai_qec.benchmarks.decoding.toric import build_toric_benchmark_report, mwpm_reference_recoveries, write_benchmark_outputs
 from ai_qec.data.datasets.toric_dataset import (
     SPLIT_SEED_OFFSETS,
     build_toric_dataset_manifest,
@@ -24,6 +24,7 @@ from ai_qec.utils.config import (
     require_experiment_kind,
     resolve_experiment_spec,
     resolve_notebook_config,
+    resolve_project_path,
     split_sample_counts,
     write_json,
 )
@@ -34,27 +35,42 @@ from ai_qec.utils.experiment_setup import (
     prepare_run_environment,
 )
 from ai_qec.utils.run_record import RunRecord, start_notebook_run
+from ai_qec.utils.source_run import (
+    SourceRun,
+    compare_with_source_predictions,
+    copy_source_checkpoint,
+    link_source_dataset,
+    load_source_run,
+    source_training_summary,
+    validate_source_dataset,
+)
 
 __all__ = [
     "BEST_CHECKPOINT_SELECTION",
     "ExactToricMWPMDecoder",
     "ExperimentSetup",
     "RunRecord",
+    "SourceRun",
     "SPLIT_SEED_OFFSETS",
     "build_code",
     "build_model",
     "build_noise_model",
     "build_toric_benchmark_report",
     "build_toric_dataset_manifest",
+    "compare_with_source_predictions",
     "config_hash",
+    "copy_source_checkpoint",
     "data_output_dir",
     "decoding_rng",
     "first_compatible_chain",
     "find_project_root",
     "first_seed",
+    "link_source_dataset",
     "load_config",
     "load_model",
+    "load_source_run",
     "load_toric_split",
+    "mwpm_reference_recoveries",
     "prepare_experiment",
     "prepare_run_environment",
     "require_experiment_kind",
@@ -63,11 +79,14 @@ __all__ = [
     "rbm_training_summary",
     "resolve_experiment_spec",
     "resolve_notebook_config",
+    "resolve_project_path",
     "save_toric_predictions",
+    "source_training_summary",
     "split_sample_counts",
     "staged_dataset_dir",
     "start_notebook_run",
     "torch_generator_from",
+    "validate_source_dataset",
     "validate_toric_dataset",
     "write_benchmark_outputs",
     "write_json",

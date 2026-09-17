@@ -63,14 +63,30 @@ class JointErrorSyndromeRBM(nn.Module):
     def _draw(probability: torch.Tensor, generator: torch.Generator) -> torch.Tensor:
         return (torch.rand(probability.shape, generator=generator, device=probability.device) < probability).to(probability.dtype)
 
+    def to_visible_tensor(self, visible: np.ndarray | torch.Tensor) -> torch.Tensor:
+        """Validate a whole split once and place it on the model device for ``validated=True`` steps."""
+        return self._visible(visible)
+
     def contrastive_divergence_step(
         self, visible: np.ndarray | torch.Tensor, *, optimizer: torch.optim.Optimizer,
-        cd_steps: int, generator: torch.Generator,
-    ) -> float:
-        """Use CD-k to estimate the RBM likelihood gradient and update parameters."""
+        cd_steps: int, generator: torch.Generator, validated: bool = False, sync: bool = True,
+    ) -> float | torch.Tensor:
+        """Use CD-k to estimate the RBM likelihood gradient and update parameters.
+
+        ``validated=True`` accepts a slice of :meth:`to_visible_tensor` and skips the per-batch
+        binary check; ``sync=False`` returns the reconstruction BCE as a detached device tensor
+        instead of a float.  Neither option changes the update or the random stream.
+        """
         if cd_steps < 1:
             raise ValueError("cd_steps must be positive")
-        positive = self._visible(visible)
+        if validated:
+            if not (isinstance(visible, torch.Tensor) and visible.device == self.weights.device
+                    and visible.dtype == self.weights.dtype and visible.ndim == 2
+                    and visible.shape[1] == self.visible_units):
+                raise ValueError("validated=True requires a slice of to_visible_tensor()")
+            positive = visible
+        else:
+            positive = self._visible(visible)
         if len(positive) == 0:
             raise ValueError("cannot train on an empty minibatch")
         with torch.no_grad():
@@ -86,13 +102,17 @@ class JointErrorSyndromeRBM(nn.Module):
         negative_energy = -(torch.sum((negative @ self.weights) * negative_hidden, dim=1) + negative @ self.visible_bias + negative_hidden @ self.hidden_bias).mean()
         (positive_energy - negative_energy).backward()
         optimizer.step()
-        return self.reconstruction_bce(positive)
+        loss = self._reconstruction_bce_tensor(positive)
+        return float(loss.item()) if sync else loss
+
+    @torch.no_grad()
+    def _reconstruction_bce_tensor(self, values: torch.Tensor) -> torch.Tensor:
+        reconstructed = torch.sigmoid(torch.sigmoid(values @ self.weights + self.hidden_bias) @ self.weights.T + self.visible_bias)
+        return F.binary_cross_entropy(reconstructed, values)
 
     @torch.no_grad()
     def reconstruction_bce(self, visible: np.ndarray | torch.Tensor) -> float:
-        values = self._visible(visible)
-        reconstructed = self.visible_probabilities(self.hidden_probabilities(values))
-        return float(F.binary_cross_entropy(reconstructed, values).item())
+        return float(self._reconstruction_bce_tensor(self._visible(visible)).item())
 
     def save(self, path: str | Path, *, metadata: dict[str, Any], optimizer: torch.optim.Optimizer | None = None) -> None:
         target = Path(path)

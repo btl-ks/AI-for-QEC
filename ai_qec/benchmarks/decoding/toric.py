@@ -39,10 +39,33 @@ def homology_counts(code: ToricCode, errors: np.ndarray, recoveries: np.ndarray)
     }
 
 
+def mwpm_reference_recoveries(code: ToricCode, syndromes: np.ndarray) -> tuple[np.ndarray, int, int]:
+    """Return MWPM recoveries, the exact defect limit, and how many shots used the PyMatching fallback.
+
+    Syndromes within the exact bitmask-DP limit are matched exactly; larger ones go to
+    PyMatching, which also returns a minimum-weight perfect matching.
+    """
+    exact = ExactToricMWPMDecoder(code)
+    fallback = None
+    recoveries = []
+    fallback_count = 0
+    for syndrome in np.asarray(syndromes, dtype=np.uint8):
+        if int(syndrome.sum()) <= exact.max_exact_defects:
+            recoveries.append(exact.decode(syndrome))
+            continue
+        fallback_count += 1
+        if fallback is None:
+            from ai_qec.models.decoders.classical.pymatching_adapter import PyMatchingToricDecoder
+
+            fallback = PyMatchingToricDecoder(code)
+        recoveries.append(fallback.decode(DecodeRequest(syndrome)).recovery)
+    return np.stack(recoveries), exact.max_exact_defects, fallback_count
+
+
 def build_toric_benchmark_report(
     code: ToricCode, *, split: str, p_error: float, errors: np.ndarray, rbm_recoveries: np.ndarray,
     rbm_valid: np.ndarray, rbm_failures: np.ndarray, decoder_latency_ms: np.ndarray, parallel_chains: int,
-    device: str, mwpm_recoveries: np.ndarray, max_exact_defects: int,
+    device: str, mwpm_recoveries: np.ndarray, max_exact_defects: int, mwpm_fallback_shots: int = 0,
 ) -> tuple[dict[str, Any], dict[str, float]]:
     """Return the RBM-vs-MWPM report and its headline metrics for one decoded split."""
     rbm_valid = np.asarray(rbm_valid, dtype=bool)
@@ -73,6 +96,8 @@ def build_toric_benchmark_report(
             "wilson_95": list(wilson_interval(int(np.sum(mwpm_failures)), total)),
             "homology_counts": homology_counts(code, errors, mwpm_recoveries),
             "max_exact_defects": int(max_exact_defects),
+            "method": "exact bitmask-DP MWPM; PyMatching MWPM for syndromes above max_exact_defects",
+            "pymatching_fallback_shots": int(mwpm_fallback_shots),
         },
     }
     metrics = {
@@ -131,12 +156,12 @@ def benchmark_toric_decoders(config: dict[str, Any], run_dir: str | Path) -> dic
         raise ValueError("Toric decoder latency data is invalid")
     if np.any(rbm_valid) and not np.array_equal(code.syndrome(rbm_recoveries[rbm_valid]), syndromes[rbm_valid]):
         raise ValueError("RBM prediction marked valid does not match its syndrome")
-    mwpm = ExactToricMWPMDecoder(code)
-    mwpm_recoveries = np.stack([mwpm.decode(DecodeRequest(syndrome, p_error)).recovery for syndrome in syndromes])
+    mwpm_recoveries, max_exact_defects, mwpm_fallback_shots = mwpm_reference_recoveries(code, syndromes)
     report, metrics = build_toric_benchmark_report(
         code, split=split, p_error=p_error, errors=errors, rbm_recoveries=rbm_recoveries, rbm_valid=rbm_valid,
         rbm_failures=rbm_failures, decoder_latency_ms=decoder_latency_ms, parallel_chains=parallel_chains,
-        device=device, mwpm_recoveries=mwpm_recoveries, max_exact_defects=mwpm.max_exact_defects,
+        device=device, mwpm_recoveries=mwpm_recoveries, max_exact_defects=max_exact_defects,
+        mwpm_fallback_shots=mwpm_fallback_shots,
     )
     write_benchmark_outputs(run_path, report, metrics)
     return metrics
