@@ -97,7 +97,7 @@ paper/srcs/torlai_melko_2017.ipynb（程序入口与最上层逻辑；每个 L �
 | 平台加速验证 | 同一 Toric 物理问题、显式 64 链 PyTorch Gibbs、同一内部 decoder 契约 | 有可用 GPU 时单独评估 CUDA 吞吐、端到端延迟和恢复链分布 |
 | 电路级平台 | 已有可选 Toric code-capacity PyMatching adapter；尚未接入 Stim 电路 | Stim/DEM、DEM 版 PyMatching、Sinter adapter 和多轮噪声按优化计划分别实现 |
 
-现阶段没有论文规模的 `P_fail(p_error)` 曲线，也没有 Stim/DEM adapter 或正式规模的 PyMatching 对照 run；项目不将 smoke 指标当作论文性能结论。
+Torlai–Melko 已完成 L=4、L=6 各 11 个错误率的论文规模网格（单一训练 seed），结果、问题与局限见 [复现报告](TORLAI_MELKO_2017_REPORT.md)；项目仍没有 Stim/DEM adapter，也不将 smoke 指标当作论文性能结论。
 
 ## 与现有优化计划的关系
 
