@@ -13,6 +13,21 @@ from ai_qec.qec.codes.toric_code import ToricCode
 GibbsDecodeResult = DecodeResult
 
 
+def torch_generator_from(rng: np.random.Generator, device: str) -> torch.Generator:
+    """Derive a seeded PyTorch generator from a NumPy generator."""
+    return torch.Generator(device=device).manual_seed(int(rng.integers(0, 2**63 - 1)))
+
+
+def first_compatible_chain(error: torch.Tensor, target: torch.Tensor, parity_check: torch.Tensor) -> int | None:
+    """Return the first chain whose syndrome ``H e mod 2`` equals ``target``, or None."""
+    # Each toric vertex check touches four edges, so these binary sums are
+    # exact in float32. CUDA does not implement integer matrix multiplication.
+    syndrome = torch.remainder(error.to(torch.float32) @ parity_check.T.to(torch.float32), 2)
+    compatible = torch.all(syndrome == target.to(torch.float32), dim=1)
+    matches = torch.nonzero(compatible, as_tuple=False)
+    return int(matches[0, 0].item()) if matches.numel() else None
+
+
 class RBMGibbsDecoder:
     """Sample one or more error chains while holding the measured syndrome fixed."""
 
@@ -32,9 +47,7 @@ class RBMGibbsDecoder:
         self.max_steps = int(max_steps)
         self.parallel_chains = int(parallel_chains)
         self.device = device
-        # H maps edge-error vectors to vertex syndromes over GF(2).
-        identity = np.eye(code.num_data_qubits, dtype=np.uint8)
-        self.parity_check = torch.as_tensor(code.syndrome(identity).T.copy(), dtype=torch.int64, device=device)
+        self.parity_check = torch.as_tensor(code.parity_check_matrix(), dtype=torch.int64, device=device)
 
     @torch.no_grad()
     def decode(self, syndrome: np.ndarray | DecodeRequest, *, rng: np.random.Generator | None = None) -> DecodeResult:
@@ -44,21 +57,16 @@ class RBMGibbsDecoder:
         if target_np.shape != (self.code.num_syndrome_bits,) or not np.isin(target_np, (0, 1)).all():
             raise ValueError("syndrome must be one binary toric syndrome vector")
         rng = rng if rng is not None else np.random.default_rng()
-        generator = torch.Generator(device=self.device).manual_seed(int(rng.integers(0, 2**63 - 1)))
+        generator = torch_generator_from(rng, self.device)
         target = torch.as_tensor(target_np, dtype=torch.int64, device=self.device)
-        error = torch.randint(0, 2, (self.parallel_chains, self.code.num_data_qubits), generator=generator, device=self.device).to(self.model.weights.dtype)
-        clamped = target.to(self.model.weights.dtype).expand(self.parallel_chains, -1)
+        error = self.model.random_error_chains(self.parallel_chains, generator)
         for step in range(1, self.max_steps + 1):
-            visible = torch.cat((error, clamped), dim=1)
-            hidden = self.model._draw(self.model.hidden_probabilities(visible), generator)
-            error = self.model._draw(self.model.error_probabilities(hidden), generator)
+            hidden = self.model.sample_hidden(error, target, generator)
+            error = self.model.sample_error(hidden, generator)
             if step <= self.burn_in:
                 continue
-            sampled_syndrome = torch.remainder(error.to(torch.int64) @ self.parity_check.T, 2)
-            compatible = torch.all(sampled_syndrome == target, dim=1)
-            matches = torch.nonzero(compatible, as_tuple=False)
-            if matches.numel():
-                chain = int(matches[0, 0].item())
+            chain = first_compatible_chain(error, target, self.parity_check)
+            if chain is not None:
                 recovery = error[chain].to(torch.uint8).cpu().numpy()
                 return DecodeResult(recovery, True, steps=step, metadata={"parallel_chains": self.parallel_chains, "accepted_chain": chain, "device": self.device})
         return DecodeResult(None, False, steps=self.max_steps, metadata={"parallel_chains": self.parallel_chains, "device": self.device})

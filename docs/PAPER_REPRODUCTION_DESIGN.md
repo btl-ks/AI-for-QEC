@@ -2,7 +2,7 @@
 
 ## 目标边界
 
-`paper/` 是论文材料与实验 Notebook 的入口。可复用的 QEC、数据、模型、训练、评估能力由主项目 `ai_qec/` 提供。Notebook 负责组织实验、核对产物和展示结果，不定义这些能力的第二份实现。
+`paper/` 是论文材料与实验 Notebook 的入口。每篇论文的 Notebook 是该复现实验的程序入口，负责最上层控制流、产物核对和结果展示。可复用的 QEC、数据、模型、训练、评估能力由主项目 `ai_qec/` 提供；Notebook 不定义这些能力的第二份实现。
 
 ```text
 paper/
@@ -14,7 +14,7 @@ paper/
 └── releases/                     # 既有不可变导出包，属于生成产物
 
 ai_qec/                        # 共用、可测试的功能实现
-configs/                           # 每篇论文的实验配置与扫描协议
+configs/                           # 脚本 runner 的配置；Torlai–Melko Notebook 参数直接写在单元格中
 datasets/                          # 可复用、内容寻址且经 manifest 验证的数据
 runs/<run_id>/                     # 正式运行的快照、日志、指标、checkpoint、预测和图表
 docs/                              # 项目设计文档；paper/docs 不放项目说明
@@ -22,17 +22,18 @@ docs/                              # 项目设计文档；paper/docs 不放项�
 
 其中 `paper/templates/` 和 `paper/releases/` 保留当前导出机制。`paper/docs/` 只存论文文件；Notebook 的使用说明放在主目录 `docs/` 下。
 
-## Notebook 的职责
+## Notebook 入口与实现边界
 
-每篇论文的 Notebook 可以：
+每篇论文的 Notebook 应：
 
-1. 引用论文、声明独立复现范围和已知的不确定参数。
-2. 选择并加载项目配置，列出实验网格与随机种子。
-3. 通过主项目的公开入口触发数据生成、训练、模型选择、解码和 benchmark；正式运行由 `scripts/run_experiment.py` 建立完整 run 记录。
-4. 读取已生成的 dataset manifest、checkpoint 元数据、metrics 和 predictions，核查样本数、身份与状态。
-5. 用结果表和图展示论文实验；图表导出由 run flow 中声明的报告步骤完成，Notebook 只读取与展示。
+1. 引用原论文，声明独立复现的范围、参数来源和不确定项；在配置单元格中定义或加载参数并严格校验，以实际运行配置作为参数、实验网格和随机种子的真相源。
+2. 创建独立 run，按配置执行数据生成、训练、解码、benchmark 和报告阶段。Notebook 可以直接展开 split、batch、epoch、minibatch、采样步及测试样本层级的循环，使论文算法的步骤和执行顺序可见。
+3. 在循环体中调用 `ai_qec/` 的库函数完成物理采样与 syndrome、模型单步更新/采样、恢复链兼容性判定、数据写入/校验、checkpoint 元数据和指标构建。Notebook 只决定何时调用，不重写这些操作的语义。
+4. 核查 dataset manifest、checkpoint、metrics、predictions 和 run 状态，并在同一测试数据身份下展示结果；保存的图表也应记录在对应 run 中。
 
-Notebook 不应定义 `ToricCode`、数据生成器、RBM、训练循环、Gibbs 解码器、MWPM、逻辑失败率公式或 checkpoint/schema 写入逻辑。Notebook 也不应把关键参数藏在单元格中；实验参数以主项目配置为真相源。清空 kernel 后应能从头执行，且重新使用或创建真实、非空、可追溯的运行产物。
+`scripts/run_experiment.py` 是通用配置和批量实验的另一入口。它与论文 Notebook 可以有不同的上层编排，但必须复用同一套库函数、配置校验、数据/schema 契约、checkpoint 身份检查及 benchmark 指标定义；两条入口不能各自维护一套算法或指标公式。论文特有的控制流可以留在 Notebook，不要求藏进通用 runner。若某段控制流需要被多个入口复用，再将其提取为 `ai_qec/` 中有明确调用方的函数。
+
+Notebook 不应在单元格中定义 `ToricCode`、RBM 结构、CD-k 单步算法、Gibbs 条件采样、syndrome/同调/逻辑失败率公式、MWPM 算法或 checkpoint/schema 序列化规则，关键参数应集中放在明确标注的配置单元格中，并保存到每次 run 的配置快照。验收时从清空的 kernel 按顺序执行全部单元格，检查最终 `run_manifest.json`、非空数据及其身份、checkpoint 和 benchmark 产物；乱序执行或残留变量不能成为成功的前提。阶段失败或中断必须在 run 状态中显式记录，不能留下看似成功的结果。
 
 ## Torlai–Melko (2017) 的功能映射
 
@@ -46,46 +47,46 @@ Notebook 不应定义 `ToricCode`、数据生成器、RBM、训练循环、Gibbs
 | 原始错误链与 syndrome schema、分片、manifest | `ai_qec/data/datasets/toric_dataset.py`、`data/generators/toric_generator.py` | 读取数据身份与形状，不手写 NPZ 格式 |
 | `(e,S)` 二进制输入构造 | `ai_qec/data/datasets/toric_dataset.py` | 显示少量样本/统计 |
 | RBM 联合模型、条件概率、参数保存 | `ai_qec/models/decoders/generative/rbm.py`，`models/registry.py` | 从配置选择模型并载入 checkpoint |
-| CD-k 训练、优化器、checkpoint 选择 | `ai_qec/training/trainers/rbm.py` 及 `training/` 相关模块 | 启动训练并展示训练记录 |
-| 固定 syndrome 的 Gibbs 恢复链采样与 timeout | `ai_qec/models/decoders/generative/rbm_decoder.py` | 显示采样步数和 timeout 统计 |
+| CD-k 单步更新、checkpoint 元数据与选择规则 | `ai_qec/training/trainers/rbm.py` 及 `training/` 相关模块 | 组织 epoch/minibatch 循环并展示训练记录 |
+| 固定 syndrome 的 Gibbs 单步采样、兼容性判定与 timeout 契约 | `ai_qec/models/decoders/generative/rbm_decoder.py` | 组织采样步/样本循环并显示 timeout 统计 |
 | 周期边界 MWPM 对照 | `ai_qec/models/decoders/classical/mwpm.py` | 在同一测试集上调用对照 |
 | `e XOR r` 同调失败率、区间、Fig. 3/4 数据 | `ai_qec/benchmarks/decoding/` | 绘制曲线与同调直方图 |
-| 论文配置、网格、运行参数和导出 allowlist | `configs/`、`scripts/run_experiment.py`、`scripts/export_paper.py` | 选择配置并读取 `run_manifest.json` |
+| 论文配置、网格、运行参数和导出 allowlist | Notebook 内联配置、`ai_qec/utils/config.py`、`scripts/export_paper.py` | 校验内联配置并读取 `run_manifest.json`；脚本 runner 的独立配置仍在 `configs/` |
 
 模型选择（论文补充材料中的超参数 grid search）属于训练/实验配置与评估协议，应在主项目建立可追溯的候选 run 和选择规则；Notebook 只调用该规则并展示各候选结果。不要把论文超参数搜索与 `design/decoder_search` 的 QEC decoder 设计搜索混为同一个功能。
 
 ## 正式实验的数据流
 
 ```text
-paper/srcs/torlai_melko_2017.ipynb
-    └── 选择 configs/experiment.torlai_melko_2017.smoke.yaml
-        └── scripts/run_experiment.py（每个 L × p_error × seed 一个可追溯 run）
-            ├── qec code + noise + backend → data schema/dataset manifest
-            ├── model registry → RBM trainer → checkpoint
-            ├── RBM Gibbs decoder + MWPM → 同一 test 数据
-            └── benchmarks → metrics/predictions/run_manifest.json
-    └── 读取 run 产物 → 结果表、Fig. 3/4 风格图、异常与局限说明
+paper/srcs/torlai_melko_2017.ipynb（程序入口与最上层逻辑；每个 L × p_error × seed 一个可追溯 run）
+    ├── RAW_CONFIG → resolve_experiment_spec → RunRecord.create：runs/<run_id>/、config.yaml 与 run_manifest.json
+    ├── 数据生成循环：noise.sample_errors → code.syndrome → write_toric_split → validate_toric_dataset（Algorithm 1 第 1–2 行）
+    ├── 训练循环：epoch/minibatch → RBM.contrastive_divergence_step → checkpoint
+    ├── 解码循环：RBM.sample_hidden / sample_error → first_compatible_chain（Algorithm 1 第 3–8 行）
+    ├── benchmark 循环：ExactToricMWPMDecoder → build_toric_benchmark_report
+    └── 结果表、Fig. 3/4 风格图、异常与局限说明
 ```
 
-为防止同一 Notebook 在原地覆盖旧结果，正式 run 由 runner 分配唯一 run ID，配置、日志、指标与 checkpoint 归属该 run。图表导出需要作为 flow 中的报告步骤，记录输入 run ID 与配置/指标 hash 并保存到同一 run 的 `figures/`；Notebook 只读取与显示。生成数据不得用空文件、零样本数组或占位 manifest 代替。
+每次执行 Notebook 都分配唯一 run ID，配置快照、环境、指标、checkpoint 与各阶段状态和产物 sha256 归属该 run，不覆盖旧结果。生成数据不得用空文件、零样本数组或占位 manifest 代替。
 
 ## 已实现的代码归属
 
-论文代码按以下归属实现；`paper/srcs/` 不保留算法 `.py`，避免形成第二套实现：
+论文代码按以下归属实现；Notebook 是入口并承载最上层逻辑，其下细节全部在 `ai_qec/`，`paper/srcs/` 不保留算法 `.py`：
 
 | 论文复现所需内容 | 目标位置或处理 |
 |---|---|
-| 实验组织与展示 | `paper/srcs/torlai_melko_2017.ipynb`；只调用主项目入口和读取 run 产物 |
+| 程序入口、最上层逻辑与展示 | `paper/srcs/torlai_melko_2017.ipynb`；阶段顺序与数据生成/训练/Gibbs 解码/benchmark 循环，调用下列库函数 |
+| run 记录 | `ai_qec/utils/run_record.py` |
 | Toric code | `ai_qec/qec/codes/toric_code.py`，已接入 code registry |
 | 数据 schema、生成与加载 | `ai_qec/data/datasets/toric_dataset.py`、`data/generators/toric_generator.py` |
-| RBM 模型与 Gibbs 解码 | `ai_qec/models/decoders/generative/`；训练循环位于 `training/trainers/rbm.py` |
+| RBM 模型与 Gibbs 解码 | `ai_qec/models/decoders/generative/` 提供模型与单步采样；`training/trainers/rbm.py` 提供 CD-k 单步更新和脚本入口复用的训练器，论文 Notebook 展开自己的上层循环 |
 | MWPM | `ai_qec/models/decoders/classical/mwpm.py`；当前无外部依赖的精确实现有 defect 上限，正式规模需要经过验证的 scalable matching 后端 |
 | 逻辑失败率与论文 benchmark | `ai_qec/benchmarks/decoding/toric.py` |
 | 论文实验说明 | 本文档；`paper/docs/` 只保留 PDF |
 
 实现已对齐主项目的配置、schema、registry、训练、benchmark 与 run manifest 契约；持续验证包括物理一致性测试和从零执行的 smoke pipeline。
 
-当前论文 smoke 使用 PyTorch 联合 RBM、CD-k、单链 syndrome-clamped Gibbs 与内置精确 Toric MWPM；模型创建和 checkpoint 加载都通过项目 registry。`configs/experiment.torlai_melko_2017.parallel_smoke.yaml` 另设 64 条并行 Gibbs 链，用于检验平台加速路径。并行链改变候选恢复链的选择过程，其指标必须与单链论文 smoke 分别标注；CUDA 仅在显式选择且可用时执行。
+当前论文 Notebook 的内联配置使用 PyTorch 联合 RBM、CD-k、单链 syndrome-clamped Gibbs 与内置精确 Toric MWPM；模型创建和 checkpoint 加载都通过项目 registry。若在配置单元格中将 `training.decoder.parallel_chains` 改为 64，可作为单独的并行链平台实验运行。并行链改变候选恢复链的选择过程，其指标必须与单链论文 smoke 分别标注；CUDA 仅在显式选择且可用时执行。
 
 论文路径与平台扩展共享 `ai_qec/` 中的代码、数据身份和 `DecodeRequest` / `DecodeResult` 契约，但实验配置和 benchmark 解释各自独立：
 

@@ -28,6 +28,13 @@ This is the project entry file for coding agents.
    - Every completed run should have a config snapshot, logs, metrics, and a `run_manifest.json`.
    - Paper exports must use explicit allowlists; never copy the whole private project tree by default.
 
+4. Register every new public API in `ai_qec/notebook_api.py`.
+   - Import the new function or class there, add its name to `__all__`, and verify it can be imported through `ai_qec.notebook_api`.
+
+5. Keep implementation cohesive and loosely coupled.
+   - Give each function and module one clear responsibility. Keep experiment parameters independent of run metadata and artifact writing; combine them only at an explicit run boundary.
+   - Pass required values explicitly, avoid hidden shared state and unrelated configuration arguments, and test each boundary through its public interface.
+
 ## Git Workflow
 
 - Work on a branch named `phase<N>/<short-name>`; merge into `main` when the task is done.

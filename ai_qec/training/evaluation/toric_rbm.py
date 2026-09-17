@@ -8,13 +8,63 @@ import time
 
 import numpy as np
 
-from ai_qec.data.datasets.toric_dataset import load_toric_split, validate_toric_dataset
+from ai_qec.data.datasets.toric_dataset import ToricDataset, load_toric_split, validate_toric_dataset
 from ai_qec.models.decoders.generative.rbm_decoder import RBMGibbsDecoder
 from ai_qec.models.decoders.protocol import DecodeRequest
 from ai_qec.models.registry import load_model
 from ai_qec.qec.codes.toric_code import ToricCode
 from ai_qec.utils.config import data_output_dir, first_seed, write_json
 from ai_qec.utils.reproducibility import code_version
+
+
+def decoding_rng(config: dict[str, Any], index: int) -> np.random.Generator:
+    """Return the reproducible, independent RNG stream for decoding sample ``index``."""
+    return np.random.default_rng(first_seed(config) + 1_000_000 + index)
+
+
+def rbm_decoding_metrics(
+    split: str, *, logical_failure: np.ndarray, timed_out: np.ndarray, recovery_valid: np.ndarray,
+    gibbs_steps: np.ndarray, decoder_latency_ms: np.ndarray,
+) -> dict[str, float]:
+    """Summarize per-sample RBM decoding outcomes; timeouts are already counted as failures."""
+    return {
+        f"{split}_rbm_logical_error_rate": float(np.mean(logical_failure)),
+        f"{split}_rbm_timeout_rate": float(np.mean(timed_out)),
+        f"{split}_rbm_valid_recovery_rate": float(np.mean(recovery_valid)),
+        f"{split}_rbm_mean_gibbs_steps": float(np.mean(gibbs_steps)),
+        f"{split}_rbm_p95_gibbs_steps": float(np.percentile(gibbs_steps, 95)),
+        f"{split}_rbm_decoder_latency_mean_ms": float(np.mean(decoder_latency_ms)),
+        f"{split}_rbm_decoder_latency_p50_ms": float(np.percentile(decoder_latency_ms, 50)),
+        f"{split}_rbm_decoder_latency_p95_ms": float(np.percentile(decoder_latency_ms, 95)),
+    }
+
+
+def save_toric_predictions(
+    path: str | Path, *, dataset: ToricDataset, parallel_chains: int, device: str, recovery: np.ndarray,
+    recovery_valid: np.ndarray, timed_out: np.ndarray, gibbs_steps: np.ndarray, decoder_latency_ms: np.ndarray,
+    logical_failure: np.ndarray,
+) -> None:
+    """Persist per-sample predictions in the schema read by the toric benchmark."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("wb") as handle:
+        np.savez_compressed(
+            handle,
+            split=np.asarray(dataset.split),
+            dataset_id=np.asarray(dataset.dataset_id),
+            lattice_size=np.asarray(dataset.lattice_size),
+            p_error=np.asarray(dataset.p_error),
+            parallel_chains=np.asarray(parallel_chains),
+            device=np.asarray(device),
+            physical_error=dataset.physical_error,
+            syndrome=dataset.syndrome,
+            recovery=recovery,
+            recovery_valid=recovery_valid,
+            timed_out=timed_out,
+            gibbs_steps=gibbs_steps,
+            decoder_latency_ms=decoder_latency_ms,
+            logical_failure=logical_failure,
+        )
 
 
 def evaluate_toric_rbm(
@@ -60,7 +110,7 @@ def evaluate_toric_rbm(
     logical_failure = np.ones(len(dataset.physical_error), dtype=np.uint8)
     for index, (error, syndrome) in enumerate(zip(dataset.physical_error, dataset.syndrome, strict=True)):
         started = time.perf_counter_ns()
-        result = decoder.decode(DecodeRequest(syndrome, dataset.p_error), rng=np.random.default_rng(first_seed(config) + 1_000_000 + index))
+        result = decoder.decode(DecodeRequest(syndrome, dataset.p_error), rng=decoding_rng(config, index))
         decoder_latency_ms[index] = (time.perf_counter_ns() - started) / 1e6
         gibbs_steps[index] = result.steps
         if result.recovery is None:
@@ -70,36 +120,15 @@ def evaluate_toric_rbm(
         recovery_valid[index] = 1
         logical_failure[index] = np.uint8(code.logical_failure(error[None, :], result.recovery[None, :])[0])
 
-    metrics = {
-        f"{split}_rbm_logical_error_rate": float(np.mean(logical_failure)),
-        f"{split}_rbm_timeout_rate": float(np.mean(timed_out)),
-        f"{split}_rbm_valid_recovery_rate": float(np.mean(recovery_valid)),
-        f"{split}_rbm_mean_gibbs_steps": float(np.mean(gibbs_steps)),
-        f"{split}_rbm_p95_gibbs_steps": float(np.percentile(gibbs_steps, 95)),
-        f"{split}_rbm_decoder_latency_mean_ms": float(np.mean(decoder_latency_ms)),
-        f"{split}_rbm_decoder_latency_p50_ms": float(np.percentile(decoder_latency_ms, 50)),
-        f"{split}_rbm_decoder_latency_p95_ms": float(np.percentile(decoder_latency_ms, 95)),
-    }
+    metrics = rbm_decoding_metrics(
+        split, logical_failure=logical_failure, timed_out=timed_out, recovery_valid=recovery_valid,
+        gibbs_steps=gibbs_steps, decoder_latency_ms=decoder_latency_ms,
+    )
     run_path = Path(run_dir)
-    predictions_dir = run_path / "predictions"
-    predictions_dir.mkdir(parents=True, exist_ok=True)
-    with (predictions_dir / "toric_rbm_eval.npz").open("wb") as handle:
-        np.savez_compressed(
-            handle,
-            split=np.asarray(split),
-            dataset_id=np.asarray(dataset.dataset_id),
-            lattice_size=np.asarray(dataset.lattice_size),
-            p_error=np.asarray(dataset.p_error),
-            parallel_chains=np.asarray(decoder.parallel_chains),
-            device=np.asarray(decoder.device),
-            physical_error=dataset.physical_error,
-            syndrome=dataset.syndrome,
-            recovery=recoveries,
-            recovery_valid=recovery_valid,
-            timed_out=timed_out,
-            gibbs_steps=gibbs_steps,
-            decoder_latency_ms=decoder_latency_ms,
-            logical_failure=logical_failure,
-        )
+    save_toric_predictions(
+        run_path / "predictions" / "toric_rbm_eval.npz", dataset=dataset, parallel_chains=decoder.parallel_chains,
+        device=decoder.device, recovery=recoveries, recovery_valid=recovery_valid, timed_out=timed_out,
+        gibbs_steps=gibbs_steps, decoder_latency_ms=decoder_latency_ms, logical_failure=logical_failure,
+    )
     write_json(run_path / "metrics.json", {"metrics": metrics})
     return metrics

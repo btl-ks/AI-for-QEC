@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import ast
+from contextlib import redirect_stdout
 import json
 import importlib.util
+import io
 from pathlib import Path
 import subprocess
 import sys
@@ -21,10 +24,86 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from ai_qec.models.decoders.classical.mwpm import ExactToricMWPMDecoder  # noqa: E402
 from ai_qec.models.decoders.protocol import DecodeRequest  # noqa: E402
 from ai_qec.qec.codes.toric_code import ToricCode  # noqa: E402
-from ai_qec.utils.config import load_config  # noqa: E402
+from ai_qec.utils.config import config_hash, load_config  # noqa: E402
+from ai_qec.utils.run_record import start_notebook_run  # noqa: E402
+
+
+def notebook_raw_config() -> dict:
+    notebook = json.loads((PROJECT_ROOT / "paper" / "srcs" / "torlai_melko_2017.ipynb").read_text(encoding="utf-8"))
+    configs = {}
+    for index in (3, 5):
+        config_cell = ast.parse("".join(notebook["cells"][index]["source"]))
+        for node in config_cell.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id in {"RUN_CONFIG", "EXPERIMENT_CONFIG"}:
+                        configs[target.id] = ast.literal_eval(node.value)
+    if set(configs) != {"RUN_CONFIG", "EXPERIMENT_CONFIG"}:
+        raise AssertionError("Notebook must define literal RUN_CONFIG and EXPERIMENT_CONFIG")
+    if set(configs["RUN_CONFIG"]) & set(configs["EXPERIMENT_CONFIG"]):
+        raise AssertionError("Notebook config groups must not overlap")
+    return {**configs["RUN_CONFIG"], **configs["EXPERIMENT_CONFIG"]}
 
 
 class ToricRBMContractTest(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec("torch") is not None, "optional PyTorch dependency is absent")
+    def test_first_compatible_chain_uses_exact_toric_parity_on_available_devices(self) -> None:
+        import torch
+
+        from ai_qec.models.decoders.generative.rbm_decoder import first_compatible_chain
+
+        code = ToricCode(distance=4)
+        errors = np.zeros((3, code.num_data_qubits), dtype=np.uint8)
+        errors[1, 0] = 1
+        errors[2, 1] = 1
+        target_np = code.syndrome(errors[1])
+        devices = ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
+        for device in devices:
+            with self.subTest(device=device):
+                chains = torch.as_tensor(errors, dtype=torch.float32, device=device)
+                target = torch.as_tensor(target_np, dtype=torch.int64, device=device)
+                checks = torch.as_tensor(code.parity_check_matrix(), dtype=torch.int64, device=device)
+                self.assertEqual(first_compatible_chain(chains, target, checks), 1)
+                self.assertIsNone(first_compatible_chain(chains[:1], target, checks))
+
+    def test_notebook_inline_config_is_validated_and_snapshotted(self) -> None:
+        raw = notebook_raw_config()
+        self.assertNotIn("flow", raw)
+        with tempfile.TemporaryDirectory() as tmp_name:
+            tmp = Path(tmp_name)
+            raw["outputs"]["runs_root"] = str(tmp / "runs")
+            raw["data"]["output_dir"] = str(tmp / "datasets")
+            raw["reproducibility"].update(save_environment=False, save_git_commit=False)
+            raw["execution"]["conda_env"] = Path(sys.prefix).name
+            raw["training"]["device"] = "cpu"
+            run_keys = {"schema_version", "execution", "experiment", "topic", "reproducibility", "outputs"}
+            run_config = {key: value for key, value in raw.items() if key in run_keys}
+            experiment_config = {key: value for key, value in raw.items() if key not in run_keys}
+            with self.assertRaisesRegex(RuntimeError, "实验参数已更改"):
+                start_notebook_run(
+                    run_config, experiment_config, project_root=PROJECT_ROOT,
+                    notebook="paper/srcs/torlai_melko_2017.ipynb", prepared_experiment_hash="stale",
+                )
+            self.assertFalse((tmp / "runs").exists())
+            output = io.StringIO()
+            with redirect_stdout(output):
+                record, device, seed = start_notebook_run(
+                    run_config, experiment_config, project_root=PROJECT_ROOT,
+                    notebook="paper/srcs/torlai_melko_2017.ipynb",
+                    prepared_experiment_hash=config_hash(experiment_config),
+                )
+            config = record.config
+            self.assertEqual((device, seed), ("cpu", 17))
+            self.assertIn("schema_version:", output.getvalue())
+            self.assertIn("qec:", output.getvalue())
+            self.assertIn("outputs:", output.getvalue())
+            self.assertLess(output.getvalue().index("outputs:"), output.getvalue().index("run 已创建："))
+            snapshot = yaml.safe_load((record.run_dir / "config.yaml").read_text(encoding="utf-8"))
+            self.assertEqual(snapshot, config)
+            self.assertEqual(record.manifest["config_hash"], config_hash(snapshot))
+            self.assertEqual(record.manifest["config"], "paper/srcs/torlai_melko_2017.ipynb")
+            self.assertIn("run started", (record.run_dir / "run.log").read_text(encoding="utf-8"))
+
     def test_toric_geometry_has_correct_boundaries_and_winding_classes(self) -> None:
         """Check individual edges, a plaquette boundary, and both logical loops."""
         code = ToricCode(distance=4)
@@ -109,9 +188,42 @@ class ToricRBMContractTest(unittest.TestCase):
     def test_toric_config_runs_the_traceable_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_name:
             tmp = Path(tmp_name)
-            raw = yaml.safe_load((PROJECT_ROOT / "configs" / "experiment.torlai_melko_2017.smoke.yaml").read_text(encoding="utf-8"))
+            raw = notebook_raw_config()
             raw["data"].update(train_samples=64, validation_samples=16, test_samples=8, batch_size=32, output_dir=str(tmp / "datasets"), dataset_id="toric-unit")
             raw["training"].update(epochs=2, batch_size=32, decoder={"burn_in": 2, "max_steps": 32, "parallel_chains": 8})
+            raw["training"]["device"] = "cpu"
+            raw["flow"] = [
+                {
+                    "id": "generate_data", "script": "scripts/generate_data.py",
+                    "args": ["--config", "${CONFIG}", "--project-root", "${PROJECT_ROOT}"],
+                    "outputs": [{"path": "${DATASET_DIR}/dataset_manifest.json", "artifact_type": "dataset_manifest", "schema_version": 1}],
+                },
+                {
+                    "id": "train", "script": "scripts/train.py",
+                    "args": ["--config", "${CONFIG}", "--run-dir", "${RUN_DIR}", "--project-root", "${PROJECT_ROOT}"],
+                    "outputs": [
+                        {"path": "${RUN_DIR}/checkpoints/best.pt", "artifact_type": "checkpoint"},
+                        {"path": "${RUN_DIR}/checkpoints/last.pt", "artifact_type": "checkpoint"},
+                        {"path": "${RUN_DIR}/training_summary.json", "artifact_type": "json"},
+                    ],
+                },
+                {
+                    "id": "evaluate", "script": "scripts/evaluate.py",
+                    "args": ["--config", "${CONFIG}", "--run-dir", "${RUN_DIR}", "--checkpoint", "${RUN_DIR}/checkpoints/best.pt", "--project-root", "${PROJECT_ROOT}"],
+                    "outputs": [
+                        {"path": "${RUN_DIR}/predictions/toric_rbm_eval.npz", "artifact_type": "predictions"},
+                        {"path": "${RUN_DIR}/metrics.json", "artifact_type": "json"},
+                    ],
+                },
+                {
+                    "id": "benchmark", "script": "scripts/benchmark.py",
+                    "args": ["--config", "${CONFIG}", "--run-dir", "${RUN_DIR}", "--project-root", "${PROJECT_ROOT}"],
+                    "outputs": [
+                        {"path": "${RUN_DIR}/metrics.json", "artifact_type": "json"},
+                        {"path": "${RUN_DIR}/benchmark_report.json", "artifact_type": "json"},
+                    ],
+                },
+            ]
             config_path = tmp / "config.yaml"
             config_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
             config = load_config(config_path, PROJECT_ROOT)

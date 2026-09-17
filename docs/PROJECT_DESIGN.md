@@ -9,12 +9,12 @@
 | 对象 | 唯一位置 | 说明 |
 |---|---|---|
 | 可复用 Python 实现 | `ai_qec/` | QEC、数据、模型、训练、评估和基础设施 |
-| 实验声明 | `configs/` | 参数、能力选择和 flow；不写运行结果 |
+| 实验声明 | `configs/` 或论文 Notebook 的配置单元格 | 脚本 runner 使用 YAML 与 flow；Torlai–Melko Notebook 直接定义参数并保存 run 快照 |
 | 可复用数据集 | `datasets/` | 内容寻址、带 manifest、可被多个 run 引用 |
 | 一次执行的结果 | `runs/<run_id>/` | 配置快照、日志、checkpoint、预测、指标和报告 |
-| 论文材料与入口 | `paper/docs/`、`paper/srcs/` | PDF 与每篇论文一个 Notebook；不实现算法 |
+| 论文材料与入口 | `paper/docs/`、`paper/srcs/` | PDF 与每篇论文一个 Notebook；Notebook 承担上层控制流，不实现领域算法 |
 
-`scripts/` 是命令入口和流程编排层。它可以解析命令参数、调用 runner 和导出器；QEC 物理、数据 schema、模型、训练和 benchmark 逻辑必须位于 `ai_qec/`。`tests/` 只验证代码，不保存实验数据或结果。
+`scripts/` 是通用配置和批量实验的命令入口与流程编排层。论文 Notebook 是对应复现实验的另一程序入口。两类入口都可以组织阶段与循环；QEC 物理、数据 schema、模型单步操作、checkpoint 身份和 benchmark 指标定义必须位于 `ai_qec/`。`tests/` 只验证代码，不保存实验数据或结果。
 
 ### 工作区的 Git 与写入边界
 
@@ -44,11 +44,13 @@ flowchart LR
     T --> RUN
     E --> RUN
     B --> RUN
-    P[paper/srcs/<paper>.ipynb] --> R
+    P[paper/srcs/<paper>.ipynb\n控制流] --> Q
+    P --> M
+    P --> B
     P --> RUN
 ```
 
-同一配置再次生成数据时，数据生成器先检查 `datasets/` 中对应的 manifest、hash、schema 和样本数。只有完全匹配且非空的数据集可以复用。每次 runner 执行都创建新的 `runs/<run_id>/`，不会覆盖已完成 run。
+同一配置再次生成数据时，数据生成器先检查 `datasets/` 中对应的 manifest、hash、schema 和样本数。只有完全匹配且非空的数据集可以复用。脚本 runner 或论文 Notebook 的每次执行都应创建新的 `runs/<run_id>/`，不会覆盖已完成 run。
 
 ## 3. `ai_qec/` 模块职责与状态
 
@@ -177,7 +179,7 @@ runs/<run_id>/
 └── benchmark_report.json
 ```
 
-checkpoint、预测、图表和指标归属产生它们的 run。可审阅的参数和 flow 放入 `configs/`，可复用的 Python 逻辑放入 `ai_qec/`；`scripts/` 只处理命令参数和编排。数据生成器只写入真实、非空且 schema 兼容的 dataset，runner 只写入新建 run，不覆盖旧结果。不要另建顶层 `artifacts/`、`checkpoints/`、`data/`、`models/` 或 `vendors/`；这些对象已经有明确归属。
+checkpoint、预测、图表和指标归属产生它们的 run。脚本 runner 的参数和 flow 放入 `configs/`；Torlai–Melko Notebook 的参数集中在配置单元格并保存 run 快照；可复用的 Python 逻辑放入 `ai_qec/`；`scripts/` 只处理命令参数和编排。数据生成器只写入真实、非空且 schema 兼容的 dataset，runner 只写入新建 run，不覆盖旧结果。不要另建顶层 `artifacts/`、`checkpoints/`、`data/`、`models/` 或 `vendors/`；这些对象已经有明确归属。
 
 ## 5. 论文复现边界
 
@@ -190,7 +192,7 @@ paper/templates/                     # 最小复现包模板
 paper/releases/                      # 本地不可变导出包；Git 忽略
 ```
 
-`paper/docs/` 只保存论文 PDF 与补充材料；`paper/releases/` 只由显式 allowlist 导出器创建。Notebook 的职责是选择配置、触发 runner、读取 manifest/metrics/predictions 并展示结果。它不能在单元格中重新定义 code、数据生成、模型、训练循环、解码器或指标。Torlai–Melko 的 code、采样、RBM、Gibbs、MWPM 和 benchmark 均归 `ai_qec/`，Notebook 只组织 run 和展示结果。论文特有的实现归属和引用见 [PAPER_REPRODUCTION_DESIGN.md](PAPER_REPRODUCTION_DESIGN.md)。
+`paper/docs/` 只保存论文 PDF 与补充材料；`paper/releases/` 只由显式 allowlist 导出器创建。论文 Notebook 是对应复现实验的程序入口，只承载最上层逻辑：阶段顺序，以及 split、epoch、minibatch、采样步和测试样本这一层的循环，并展示结果。这一层以下的实现都是 `ai_qec/` 库函数：code 与噪声模型、模型结构及单步采样/CD-k 更新、兼容性检查、基线解码器（如 MWPM）、数据集写入/manifest 构建/校验、指标与报告构建，以及 run 记录（`utils/run_record.py`）。Notebook 不在单元格中重新实现这些细节；`scripts/run_experiment.py` 保留为通用配置的脚本入口。两类入口复用相同的配置校验、领域函数、数据/checkpoint 契约和指标定义，允许各自组织上层控制流。Notebook 必须能从清空的 kernel 顺序执行，并验证非空数据、产物身份和 run 终态。论文特有的实现归属和引用见 [PAPER_REPRODUCTION_DESIGN.md](PAPER_REPRODUCTION_DESIGN.md)。
 
 ## 6. 架构与规划一致性核对（2026-09-15）
 

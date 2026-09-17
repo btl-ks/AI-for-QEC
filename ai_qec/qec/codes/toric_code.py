@@ -70,6 +70,10 @@ class ToricCode(QECCode):
         )
         return syndrome.reshape(error.shape[:-1] + (self.num_syndrome_bits,))
 
+    def parity_check_matrix(self) -> np.ndarray:
+        """Return ``H`` with ``H @ error % 2 == syndrome(error)``; column ``j`` is the syndrome of edge ``j``."""
+        return self.syndrome(np.eye(self.num_data_qubits, dtype=np.uint8)).T.copy()
+
     def homology(self, cycle: np.ndarray, *, require_closed: bool = True) -> np.ndarray:
         """Return the two winding parities of a closed error/recovery cycle."""
         cycle = _binary_edges(cycle, self.num_data_qubits, "cycle")

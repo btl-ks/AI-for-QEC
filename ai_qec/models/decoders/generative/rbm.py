@@ -46,6 +46,19 @@ class JointErrorSyndromeRBM(nn.Module):
     def error_probabilities(self, hidden: torch.Tensor) -> torch.Tensor:
         return self.visible_probabilities(hidden)[:, :self.error_units]
 
+    def random_error_chains(self, n_chains: int, generator: torch.Generator) -> torch.Tensor:
+        """Draw uniformly random binary error chains as Gibbs starting states."""
+        return torch.randint(0, 2, (n_chains, self.error_units), generator=generator, device=self.weights.device).to(self.weights.dtype)
+
+    def sample_hidden(self, error: torch.Tensor, syndrome: torch.Tensor, generator: torch.Generator) -> torch.Tensor:
+        """Sample ``h ~ p(h | e, S)`` with the same clamped syndrome for every chain."""
+        clamped = syndrome.to(self.weights.dtype).expand(len(error), -1)
+        return self._draw(self.hidden_probabilities(torch.cat((error, clamped), dim=1)), generator)
+
+    def sample_error(self, hidden: torch.Tensor, generator: torch.Generator) -> torch.Tensor:
+        """Sample ``e ~ p(e | h)``; the syndrome units stay clamped and are not resampled."""
+        return self._draw(self.error_probabilities(hidden), generator)
+
     @staticmethod
     def _draw(probability: torch.Tensor, generator: torch.Generator) -> torch.Tensor:
         return (torch.rand(probability.shape, generator=generator, device=probability.device) < probability).to(probability.dtype)

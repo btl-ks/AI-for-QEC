@@ -7,7 +7,7 @@ toy synthetic event-slot data → ridge baseline → plumbing benchmarks
 toric code-capacity data → joint RBM → Gibbs decoder / exact MWPM → logical-failure benchmark
 ```
 
-论文默认 smoke 使用 PyTorch RBM 与单链 Gibbs；`configs/experiment.torlai_melko_2017.parallel_smoke.yaml` 是独立的 64 链平台加速 smoke。两种解码采样方式的结果需分别解释。
+论文 Notebook 在配置单元格中定义默认 smoke 参数，使用 PyTorch RBM 与单链 Gibbs。将同一单元格中的 `training.decoder.parallel_chains` 改为 64 可另行运行并行链平台实验；两种结果需分别解释。
 
 给 Coding Agent / AI 助手的固定入口是 `AGENTS.md`，其中包含强约束：盖棺定论的学术结论必须引用论文，且不得用空文件或占位数组冒充生成数据。
 
@@ -55,6 +55,8 @@ pip install -r requirements.txt
 # Torlai–Melko PyTorch RBM 路径需要额外安装
 pip install -e '.[torch]'
 ```
+
+运行论文 Notebook 时，请在所选 Python 内核对应的环境中执行上述 editable 安装；这样首个单元格才能从任意工作目录导入 `ai_qec` 并定位项目源码。
 
 ## 选择 Conda 执行环境
 

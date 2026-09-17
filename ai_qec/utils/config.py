@@ -501,8 +501,10 @@ def _normalise_defaults(config: dict[str, Any]) -> None:
     repro.setdefault("require_clean_worktree", True)
 
 
-def resolve_experiment_spec(config: Mapping[str, Any], project_root: str | Path | None = None) -> ResolvedExperimentSpec:
-    """Validate a raw config and return its canonical executable representation."""
+def resolve_experiment_spec(
+    config: Mapping[str, Any], project_root: str | Path | None = None, *, allow_empty_flow: bool = False,
+) -> ResolvedExperimentSpec:
+    """Validate a raw config; notebook-owned stages may opt out of a script flow."""
     if not isinstance(config, Mapping):
         _fail("config", "must be a mapping")
     resolved = deepcopy(dict(config))
@@ -511,7 +513,7 @@ def resolve_experiment_spec(config: Mapping[str, Any], project_root: str | Path 
         resolved,
         "config",
         allowed={"schema_version", "experiment", "topic", "reproducibility", "execution", "qec", "noise", "data", "model", "training", "outputs", "flow", "paper_export", "reserved"},
-        required={"schema_version", "experiment", "data", "flow"},
+        required={"schema_version", "experiment", "data"} if allow_empty_flow else {"schema_version", "experiment", "data", "flow"},
     )
     if _integer(resolved["schema_version"], "schema_version", minimum=1) != SCHEMA_VERSION:
         _fail("schema_version", f"unsupported version; expected {SCHEMA_VERSION}")
@@ -537,10 +539,35 @@ def resolve_experiment_spec(config: Mapping[str, Any], project_root: str | Path 
     if "reserved" in resolved:
         _validate_reserved(resolved["reserved"])
     root = Path(project_root).resolve() if project_root is not None else None
-    flow = _parse_flow(resolved["flow"], root)
+    raw_flow = resolved.get("flow", [])
+    flow = () if allow_empty_flow and raw_flow == [] else _parse_flow(raw_flow, root)
     _validate_cross_fields(resolved, flow)
     resolved["flow"] = [step.to_dict() for step in flow]
     return ResolvedExperimentSpec(config=resolved, flow=flow)
+
+
+def require_experiment_kind(
+    experiment_config: Mapping[str, Any], *, generator: str, model: str,
+) -> None:
+    """Require the experiment parameters to select the expected workflow."""
+    data = experiment_config.get("data")
+    model_config = experiment_config.get("model")
+    if not isinstance(data, Mapping) or data.get("generator") != generator:
+        raise ValueError(f"实验要求 data.generator={generator!r}")
+    if not isinstance(model_config, Mapping) or model_config.get("implementation") != model:
+        raise ValueError(f"实验要求 model.implementation={model!r}")
+
+
+def resolve_notebook_config(
+    run_config: Mapping[str, Any], experiment_config: Mapping[str, Any], *, project_root: str | Path,
+) -> dict[str, Any]:
+    """Assemble and validate the complete config at the notebook run boundary."""
+    repeated = set(run_config) & set(experiment_config)
+    if repeated:
+        raise ValueError(f"配置键不能同时出现在两组中：{', '.join(sorted(repeated))}")
+    return resolve_experiment_spec(
+        {**run_config, **experiment_config}, project_root=project_root, allow_empty_flow=True,
+    ).config
 
 
 def load_experiment_spec(path: str | Path, project_root: str | Path | None = None) -> ResolvedExperimentSpec:

@@ -2,20 +2,100 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+import datetime as dt
 import hashlib
 import json
+import os
 from pathlib import Path
-from typing import Any
+import shutil
+from typing import Any, Iterator
+import uuid
 
 import numpy as np
 
+from ai_qec.data.schema.manifest import DatasetManifest
 from ai_qec.qec.codes.toric_code import ToricCode
-from ai_qec.utils.config import config_hash, generation_hash
+from ai_qec.utils.config import config_hash, generation_hash, generation_spec, split_sample_counts
 
 
 TORIC_DATASET_SCHEMA_VERSION = 1
 TORIC_SPLIT_FIELDS = {"split", "dataset_id", "physical_error", "syndrome", "lattice_size", "p_error"}
+# Per-split offsets added to the base seed so train/validation/test are independent random streams.
+SPLIT_SEED_OFFSETS = {"train": 0, "validation": 10_000, "test": 20_000}
+
+
+@contextmanager
+def staged_dataset_dir(output_path: str | Path) -> Iterator[Path]:
+    """Yield a staging directory that is atomically renamed to ``output_path`` only on success."""
+    target = Path(output_path)
+    if target.exists() or target.is_symlink():
+        raise FileExistsError(f"Refusing to overwrite immutable dataset: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = target.parent / f".staging-{target.name}-{uuid.uuid4().hex}"
+    staging.mkdir()
+    try:
+        yield staging
+        os.rename(staging, target)
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+
+
+def write_toric_split(
+    path: Path, *, split: str, dataset_id: str, physical_error: np.ndarray, syndrome: np.ndarray,
+    lattice_size: int, p_error: float,
+) -> dict[str, Any]:
+    """Write one non-empty split and return its manifest file record."""
+    if not len(physical_error):
+        raise ValueError("Refusing to write an empty toric dataset split")
+    with path.open("xb") as handle:
+        np.savez_compressed(
+            handle,
+            split=np.asarray(split),
+            dataset_id=np.asarray(dataset_id),
+            physical_error=physical_error,
+            syndrome=syndrome,
+            lattice_size=np.asarray(lattice_size),
+            p_error=np.asarray(p_error),
+        )
+    return {
+        "sha256": sha256(path),
+        "samples": int(len(physical_error)),
+        "arrays": {
+            "physical_error": {"shape": list(physical_error.shape), "dtype": str(physical_error.dtype)},
+            "syndrome": {"shape": list(syndrome.shape), "dtype": str(syndrome.dtype)},
+        },
+    }
+
+
+def build_toric_dataset_manifest(
+    config: dict[str, Any], code: ToricCode, files: dict[str, dict[str, Any]], *, extra_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Assemble the provenance manifest for split records written by ``write_toric_split``."""
+    context = {
+        "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "physics_fidelity": "toric_code_capacity",
+        "representation": "raw_binary_error_and_syndrome",
+        "code": code.context(),
+        "noise": {"model": str(config["noise"]["model"]), "p_error": float(config["noise"]["p_error"])},
+        **(extra_context or {}),
+    }
+    manifest = DatasetManifest(
+        dataset_id=str(config["data"]["dataset_id"]),
+        generator=str(config["data"]["generator"]),
+        sample_counts=split_sample_counts(config),
+        feature_names=["physical_error", "syndrome"],
+        config_hash=config_hash(config),
+        generation_hash=generation_hash(config),
+        schema_version=TORIC_DATASET_SCHEMA_VERSION,
+        files=files,
+        effective_generation=generation_spec(config),
+        context=context,
+    ).to_dict()
+    manifest["representation"] = "error_syndrome"
+    return manifest
 
 
 def sha256(path: Path) -> str:

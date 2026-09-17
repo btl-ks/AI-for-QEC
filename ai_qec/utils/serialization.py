@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
+
+import yaml
+
+
+def format_yaml(data: Mapping[str, Any]) -> str:
+    """Format a mapping as readable YAML without writing a file."""
+    return yaml.safe_dump(dict(data), sort_keys=False, allow_unicode=True)
 
 
 def read_json(path: str | Path) -> dict[str, Any]:
