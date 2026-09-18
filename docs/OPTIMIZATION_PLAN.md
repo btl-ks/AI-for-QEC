@@ -2,7 +2,7 @@
 
 > 本文是任务路线图，不是当前目录树或能力说明。当前代码分层与文件放置规则见 [PROJECT_DESIGN.md](PROJECT_DESIGN.md)，外部工具边界见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)。任务完成状态必须以代码、测试和对应 Exit Criteria 为准。
 
-> 版本：v3.2（2026-09-19；对齐论文总结目录）
+> 版本：v3.3（2026-09-19；补充解码器目录决策点）
 > 读者：项目维护者、协作者、coding agent
 > 依据：2026-09-14 架构与代码复核，以及 2026-09-15 技术栈核验（摘要见 §1 与 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)）
 > 规则：每个 Phase 有退出标准（Exit Criteria）；未满足时，不开始依赖它的后续工作。
@@ -153,6 +153,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [ ] **P1.7 物理与 schema 测试**：噪声为 0 时 detection events 全 0、observable 不翻转；数据中 detector/observable 数与 circuit 一致；固定 seed 结果可复现；bit-pack 往返无损；损坏 shard、错误 DEM/circuit hash、错 feature order 会被拒绝。对 d ∈ {3, 5, 7} 检查编译后的几何，不再断言手写公式。增加人工可验算的小型 circuit/DEM fixture，验证 MWPM correction 与 residual-observable LER；在 fresh environment 安装 `.[sim]` 后执行真实 backend smoke。
 - [ ] **P1.8 Observable label provenance**：真实路径的 `logical_label` 来自 sampled observable flip，并记录 decoder correction/prediction 的关系；验证 P0.3 建立的 `toy_synthetic` 测试夹具与真实 dataset/model registry 隔离，不能被正式配置、物理 benchmark 或论文导出误引用。
 - [ ] **P1.9 Sampler/decoder protocol 与 Sinter 兼容**：建立不泄漏 Stim/Qiskit/CUDA-Q 类型的 project-local `QECProblem`、`SamplerBackend`、`CompiledDecoder` 和 `DecoderOutput` 契约。DEM + hard detector bits 路径提供 Sinter adapter；code-capacity recovery、soft readout、leakage 和 hybrid diagnostics 由项目接口保留。用同一批 bit-packed shots 验证 project runner 与 Sinter adapter 的 observable prediction/LER 一致。
+  - **解码器目录决策**：owner 为 P1.9 实施者，最晚在统一 decoder protocol 冻结前确定。默认保留现有 `ai_qec/models/decoders/`，因为它符合当前架构；对 RBM Gibbs、经典 MWPM、PyMatching adapter 和计划中的混合 decoder 一起评估依赖方向。若决定迁到顶层 `ai_qec/decoders/`，应整体迁移协议和实现，同步更新 registry、`notebook_api`、调用方、测试与架构文档，并验证公开导入的兼容过渡；不单独迁移 `rbm_decoder.py`。
 
 **Exit Criteria**
 - 一条命令生成 d ∈ {3, 5, 7}、多个物理错误率下的 MWPM LER 曲线。
@@ -229,6 +230,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [x] **P4.12 RBM 数据与训练路径收拢**：Notebook 与脚本共用 Toric split 生成器和 RBM 训练器；训练通过 PyTorch `DataLoader` 组织小批次，一次构造 float32 输入、减少逐批设备同步，并按样本数汇总不等长 batch 指标；Notebook 调用共享 Gibbs 解码器。验证独立 split 随机流、训练确定性、非整除 batch，以及 CPU/CUDA Notebook smoke。本项不改变 run 生命周期与产物格式。
 - [x] **P4.13 架构与包管理执行摘要**：在技术栈文档明确领域代码与 Stim/PyMatching/Sinter/PyTorch 的分工、`pyproject.toml` + uv 的目标方案及 Conda/CUDA 边界；在本计划索引依赖关系和验收任务。此项仅为文档决策，不表示 uv 已安装、依赖已锁定或后续能力已实现。
 - [x] **P4.14 论文总结目录迁移**：将 Torlai–Melko 报告 Markdown 归入同名子目录，修复报告内资源/源码相对链接及项目文档入口；嵌套目录的生成版 PDF/HTML 保持 Git 忽略。以仓库内相对链接校验与 `git check-ignore` 验收。
+- [x] **P4.15 解码器目录归属复核**：对照当前架构与未来 decoder protocol，确认现阶段保留 `models/decoders/`，不单独移动 Gibbs 解码器；将整体目录取舍、owner、默认方案和最晚决策点写入 P1.9。本项仅完成架构计划，不表示目录已迁移或 P1.9 已交付。
 - [ ] **P4.1** 提供安装后的统一 `ai-qec` CLI（run/generate/train/evaluate/benchmark/export 子命令）；开发环境通过 P4.10 的 `uv sync --locked` 安装所选 extras/groups，另在仓库外安装 wheel 验证 CLI。移除 scripts 中的 `sys.path` 注入；package data 不得引用 wheel 外的默认配置，各 extra 的支持矩阵必须测试。
 - [ ] **P4.2** ruff + pytest + typing + coverage；测试按 `unit/`、`integration/`、`regression/`、`smoke/` 分层，并设置最低覆盖门槛。smoke 必须经过正式 runner，而非手工串联子脚本。
 - [ ] **P4.3** 回归测试：固定 seed 小数据集的 golden metrics，按容差比较；golden fixture 使用明确 allowlist，不得因全局 `*.npz` ignore 而静默缺失。
