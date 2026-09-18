@@ -1,6 +1,17 @@
 """Convenience imports for the Torlai–Melko experiment notebook."""
 
-from ai_qec.benchmarks.decoding.toric import build_toric_benchmark_report, mwpm_reference_recoveries, write_benchmark_outputs
+from ai_qec.benchmarks.decoding.exact_posterior import (
+    MaximumLikelihoodTieRule,
+    closed_cycle_basis,
+    exact_posterior_reference,
+    homology_class_posteriors,
+)
+from ai_qec.benchmarks.decoding.toric import (
+    build_toric_benchmark_report,
+    mwpm_reference_recoveries,
+    mwpm_tie_sensitivity,
+    write_benchmark_outputs,
+)
 from ai_qec.data.datasets.toric_dataset import (
     SPLIT_SEED_OFFSETS,
     build_toric_dataset_manifest,
@@ -49,6 +60,7 @@ __all__ = [
     "BEST_CHECKPOINT_SELECTION",
     "ExactToricMWPMDecoder",
     "ExperimentSetup",
+    "MaximumLikelihoodTieRule",
     "RunRecord",
     "SourceRun",
     "SPLIT_SEED_OFFSETS",
@@ -58,19 +70,23 @@ __all__ = [
     "build_toric_benchmark_report",
     "build_toric_dataset_manifest",
     "compare_with_source_predictions",
+    "closed_cycle_basis",
     "config_hash",
     "copy_source_checkpoint",
     "data_output_dir",
     "decoding_rng",
+    "exact_posterior_reference",
     "first_compatible_chain",
     "find_project_root",
     "first_seed",
     "link_source_dataset",
+    "homology_class_posteriors",
     "load_config",
     "load_model",
     "load_source_run",
     "load_toric_split",
     "mwpm_reference_recoveries",
+    "mwpm_tie_sensitivity",
     "prepare_experiment",
     "prepare_run_environment",
     "require_experiment_kind",

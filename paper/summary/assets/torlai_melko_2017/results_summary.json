@@ -14,8 +14,8 @@
       "tout": 29,
       "mw": 0.0825,
       "fb": 0,
-      "exact_ml_p_fail": 0.0695,
-      "ideal_sampling_p_fail": 0.08459300994873042,
+      "exact_ml_p_fail": 0.07379166666666667,
+      "ideal_sampling_p_fail": 0.08459301793524525,
       "val_bce": 0.015591461211442947,
       "rbm_homology": {
         "00": 1826,
@@ -28,7 +28,13 @@
         "01": 81,
         "10": 74,
         "11": 10
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.07379166666666667,
+        "trivial": 0.0415,
+        "ties_fail": 0.105
+      },
+      "exact_ml_tie_shots": 127
     },
     {
       "p": 0.06,
@@ -43,8 +49,8 @@
       "tout": 33,
       "mw": 0.114,
       "fb": 0,
-      "exact_ml_p_fail": 0.09099999999999997,
-      "ideal_sampling_p_fail": 0.12308010864257812,
+      "exact_ml_p_fail": 0.10295833333333333,
+      "ideal_sampling_p_fail": 0.12308009439709884,
       "val_bce": 0.020059574395418167,
       "rbm_homology": {
         "00": 1774,
@@ -57,7 +63,13 @@
         "01": 104,
         "10": 102,
         "11": 22
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.10295833333333333,
+        "trivial": 0.0645,
+        "ties_fail": 0.14
+      },
+      "exact_ml_tie_shots": 151
     },
     {
       "p": 0.07,
@@ -72,8 +84,8 @@
       "tout": 31,
       "mw": 0.154,
       "fb": 0,
-      "exact_ml_p_fail": 0.12150000000000005,
-      "ideal_sampling_p_fail": 0.1660442504882812,
+      "exact_ml_p_fail": 0.13608333333333333,
+      "ideal_sampling_p_fail": 0.16604425447741264,
       "val_bce": 0.026904694736003876,
       "rbm_homology": {
         "00": 1701,
@@ -86,7 +98,13 @@
         "01": 135,
         "10": 132,
         "11": 41
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.13608333333333333,
+        "trivial": 0.092,
+        "ties_fail": 0.1785
+      },
+      "exact_ml_tie_shots": 173
     },
     {
       "p": 0.08,
@@ -101,8 +119,8 @@
       "tout": 36,
       "mw": 0.1945,
       "fb": 0,
-      "exact_ml_p_fail": 0.15400000000000003,
-      "ideal_sampling_p_fail": 0.21362062072753907,
+      "exact_ml_p_fail": 0.174,
+      "ideal_sampling_p_fail": 0.21362066152290982,
       "val_bce": 0.032804153859615326,
       "rbm_homology": {
         "00": 1610,
@@ -115,7 +133,13 @@
         "01": 164,
         "10": 164,
         "11": 61
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.174,
+        "trivial": 0.126,
+        "ties_fail": 0.2195
+      },
+      "exact_ml_tie_shots": 187
     },
     {
       "p": 0.09,
@@ -130,8 +154,8 @@
       "tout": 39,
       "mw": 0.2335,
       "fb": 0,
-      "exact_ml_p_fail": 0.1885,
-      "ideal_sampling_p_fail": 0.26284237670898436,
+      "exact_ml_p_fail": 0.21033333333333334,
+      "ideal_sampling_p_fail": 0.2628423854504685,
       "val_bce": 0.0371924564242363,
       "rbm_homology": {
         "00": 1516,
@@ -144,7 +168,13 @@
         "01": 193,
         "10": 188,
         "11": 86
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.21033333333333334,
+        "trivial": 0.157,
+        "ties_fail": 0.26
+      },
+      "exact_ml_tie_shots": 206
     },
     {
       "p": 0.1,
@@ -159,8 +189,8 @@
       "tout": 37,
       "mw": 0.2885,
       "fb": 0,
-      "exact_ml_p_fail": 0.22899999999999998,
-      "ideal_sampling_p_fail": 0.3170411529541015,
+      "exact_ml_p_fail": 0.2504166666666667,
+      "ideal_sampling_p_fail": 0.3170411549044287,
       "val_bce": 0.040595442056655884,
       "rbm_homology": {
         "00": 1401,
@@ -173,7 +203,13 @@
         "01": 233,
         "10": 233,
         "11": 111
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.2504166666666667,
+        "trivial": 0.192,
+        "ties_fail": 0.304
+      },
+      "exact_ml_tie_shots": 224
     },
     {
       "p": 0.11,
@@ -188,8 +224,8 @@
       "tout": 55,
       "mw": 0.3315,
       "fb": 0,
-      "exact_ml_p_fail": 0.2915,
-      "ideal_sampling_p_fail": 0.37146441650390627,
+      "exact_ml_p_fail": 0.29583333333333334,
+      "ideal_sampling_p_fail": 0.3714644152205905,
       "val_bce": 0.0469517819583416,
       "rbm_homology": {
         "00": 1318,
@@ -202,7 +238,13 @@
         "01": 273,
         "10": 262,
         "11": 128
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.29583333333333334,
+        "trivial": 0.238,
+        "ties_fail": 0.3495
+      },
+      "exact_ml_tie_shots": 223
     },
     {
       "p": 0.12,
@@ -217,8 +259,8 @@
       "tout": 48,
       "mw": 0.3895,
       "fb": 0,
-      "exact_ml_p_fail": 0.31599999999999995,
-      "ideal_sampling_p_fail": 0.42904174041748044,
+      "exact_ml_p_fail": 0.3409583333333333,
+      "ideal_sampling_p_fail": 0.4290417734713585,
       "val_bce": 0.04996629059314728,
       "rbm_homology": {
         "00": 1210,
@@ -231,7 +273,13 @@
         "01": 309,
         "10": 306,
         "11": 164
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.3409583333333333,
+        "trivial": 0.283,
+        "ties_fail": 0.394
+      },
+      "exact_ml_tie_shots": 222
     },
     {
       "p": 0.13,
@@ -246,8 +294,8 @@
       "tout": 56,
       "mw": 0.441,
       "fb": 0,
-      "exact_ml_p_fail": 0.385,
-      "ideal_sampling_p_fail": 0.47657190322875975,
+      "exact_ml_p_fail": 0.38916666666666666,
+      "ideal_sampling_p_fail": 0.4765718799258716,
       "val_bce": 0.05598726496100426,
       "rbm_homology": {
         "00": 1094,
@@ -260,7 +308,13 @@
         "01": 331,
         "10": 357,
         "11": 194
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.38916666666666666,
+        "trivial": 0.33,
+        "ties_fail": 0.4425
+      },
+      "exact_ml_tie_shots": 225
     },
     {
       "p": 0.14,
@@ -275,8 +329,8 @@
       "tout": 65,
       "mw": 0.481,
       "fb": 0,
-      "exact_ml_p_fail": 0.40049999999999997,
-      "ideal_sampling_p_fail": 0.5195106201171875,
+      "exact_ml_p_fail": 0.420375,
+      "ideal_sampling_p_fail": 0.5195106013196732,
       "val_bce": 0.06264334172010422,
       "rbm_homology": {
         "00": 1000,
@@ -289,7 +343,13 @@
         "01": 341,
         "10": 385,
         "11": 236
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.420375,
+        "trivial": 0.359,
+        "ties_fail": 0.475
+      },
+      "exact_ml_tie_shots": 232
     },
     {
       "p": 0.15,
@@ -304,8 +364,8 @@
       "tout": 39,
       "mw": 0.4995,
       "fb": 0,
-      "exact_ml_p_fail": 0.4445,
-      "ideal_sampling_p_fail": 0.5542760925292969,
+      "exact_ml_p_fail": 0.4497083333333333,
+      "ideal_sampling_p_fail": 0.5542760726850605,
       "val_bce": 0.06567668169736862,
       "rbm_homology": {
         "00": 908,
@@ -318,7 +378,13 @@
         "01": 348,
         "10": 389,
         "11": 262
-      }
+      },
+      "exact_ml_p_fail_tie_rules": {
+        "random": 0.4497083333333333,
+        "trivial": 0.3875,
+        "ties_fail": 0.505
+      },
+      "exact_ml_tie_shots": 235
     }
   ],
   "L6_1000_steps": [
@@ -1389,5 +1455,128 @@
     "tout": "timeouts",
     "mw": "MWPM P_fail",
     "fb": "shots decoded by PyMatching fallback"
-  }
+  },
+  "mwpm_tie_sensitivity_L6": [
+    {
+      "p": 0.05,
+      "compared_shots": 1000,
+      "skipped_above_exact_limit": 0,
+      "identical_recovery_rate": 0.692,
+      "same_homology_rate": 0.96,
+      "same_failure_outcome_rate": 0.962,
+      "exact_p_fail": 0.046,
+      "pymatching_p_fail": 0.04,
+      "p_fail_difference": 0.006
+    },
+    {
+      "p": 0.06,
+      "compared_shots": 1000,
+      "skipped_above_exact_limit": 0,
+      "identical_recovery_rate": 0.609,
+      "same_homology_rate": 0.946,
+      "same_failure_outcome_rate": 0.951,
+      "exact_p_fail": 0.069,
+      "pymatching_p_fail": 0.06,
+      "p_fail_difference": 0.009
+    },
+    {
+      "p": 0.07,
+      "compared_shots": 1000,
+      "skipped_above_exact_limit": 0,
+      "identical_recovery_rate": 0.516,
+      "same_homology_rate": 0.911,
+      "same_failure_outcome_rate": 0.921,
+      "exact_p_fail": 0.105,
+      "pymatching_p_fail": 0.104,
+      "p_fail_difference": 0.001
+    },
+    {
+      "p": 0.08,
+      "compared_shots": 1000,
+      "skipped_above_exact_limit": 0,
+      "identical_recovery_rate": 0.445,
+      "same_homology_rate": 0.869,
+      "same_failure_outcome_rate": 0.888,
+      "exact_p_fail": 0.146,
+      "pymatching_p_fail": 0.138,
+      "p_fail_difference": 0.008
+    },
+    {
+      "p": 0.09,
+      "compared_shots": 1000,
+      "skipped_above_exact_limit": 0,
+      "identical_recovery_rate": 0.385,
+      "same_homology_rate": 0.833,
+      "same_failure_outcome_rate": 0.865,
+      "exact_p_fail": 0.192,
+      "pymatching_p_fail": 0.191,
+      "p_fail_difference": 0.001
+    },
+    {
+      "p": 0.1,
+      "compared_shots": 998,
+      "skipped_above_exact_limit": 2,
+      "identical_recovery_rate": 0.3286573146292585,
+      "same_homology_rate": 0.7995991983967936,
+      "same_failure_outcome_rate": 0.8406813627254509,
+      "exact_p_fail": 0.25551102204408815,
+      "pymatching_p_fail": 0.2565130260521042,
+      "p_fail_difference": 0.001002004008016032
+    },
+    {
+      "p": 0.11,
+      "compared_shots": 994,
+      "skipped_above_exact_limit": 6,
+      "identical_recovery_rate": 0.2806841046277666,
+      "same_homology_rate": 0.7505030181086519,
+      "same_failure_outcome_rate": 0.8128772635814889,
+      "exact_p_fail": 0.3299798792756539,
+      "pymatching_p_fail": 0.3199195171026157,
+      "p_fail_difference": 0.01006036217303823
+    },
+    {
+      "p": 0.12,
+      "compared_shots": 987,
+      "skipped_above_exact_limit": 13,
+      "identical_recovery_rate": 0.22188449848024316,
+      "same_homology_rate": 0.7122593718338399,
+      "same_failure_outcome_rate": 0.7750759878419453,
+      "exact_p_fail": 0.3819655521783181,
+      "pymatching_p_fail": 0.3718338399189463,
+      "p_fail_difference": 0.010131712259371834
+    },
+    {
+      "p": 0.13,
+      "compared_shots": 985,
+      "skipped_above_exact_limit": 15,
+      "identical_recovery_rate": 0.1949238578680203,
+      "same_homology_rate": 0.6730964467005076,
+      "same_failure_outcome_rate": 0.7695431472081218,
+      "exact_p_fail": 0.44771573604060916,
+      "pymatching_p_fail": 0.4385786802030457,
+      "p_fail_difference": 0.009137055837563452
+    },
+    {
+      "p": 0.14,
+      "compared_shots": 974,
+      "skipped_above_exact_limit": 26,
+      "identical_recovery_rate": 0.1704312114989733,
+      "same_homology_rate": 0.6427104722792608,
+      "same_failure_outcome_rate": 0.7587268993839835,
+      "exact_p_fail": 0.5030800821355236,
+      "pymatching_p_fail": 0.48357289527720737,
+      "p_fail_difference": 0.019507186858316223
+    },
+    {
+      "p": 0.15,
+      "compared_shots": 955,
+      "skipped_above_exact_limit": 45,
+      "identical_recovery_rate": 0.15602094240837697,
+      "same_homology_rate": 0.6240837696335079,
+      "same_failure_outcome_rate": 0.7465968586387435,
+      "exact_p_fail": 0.5413612565445026,
+      "pymatching_p_fail": 0.5204188481675392,
+      "p_fail_difference": 0.020942408376963352
+    }
+  ]
 }

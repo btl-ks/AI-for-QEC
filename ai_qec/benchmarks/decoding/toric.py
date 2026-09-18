@@ -62,6 +62,52 @@ def mwpm_reference_recoveries(code: ToricCode, syndromes: np.ndarray) -> tuple[n
     return np.stack(recoveries), exact.max_exact_defects, fallback_count
 
 
+def mwpm_tie_sensitivity(code: ToricCode, errors: np.ndarray, syndromes: np.ndarray) -> dict[str, Any]:
+    """Measure how much the MWPM baseline depends on which minimum-weight matching is picked.
+
+    Both decoders return a minimum-weight perfect matching, so they differ only when
+    several matchings share that weight.  Degeneracy grows with the error rate, and a
+    different choice can land in a different homology class, which moves ``P_fail``.
+    Only shots within the exact decoder's defect limit can be compared.
+    """
+    from ai_qec.models.decoders.classical.pymatching_adapter import PyMatchingToricDecoder
+
+    exact = ExactToricMWPMDecoder(code)
+    matching = PyMatchingToricDecoder(code)
+    errors = np.asarray(errors, dtype=np.uint8)
+    compared = identical = same_homology = same_outcome = 0
+    exact_failures = matching_failures = 0
+    for error, syndrome in zip(errors, np.asarray(syndromes, dtype=np.uint8), strict=True):
+        if int(syndrome.sum()) > exact.max_exact_defects:
+            continue
+        exact_recovery = exact.decode(syndrome)
+        matching_recovery = matching.decode(DecodeRequest(syndrome)).recovery
+        if int(exact_recovery.sum()) != int(matching_recovery.sum()):
+            raise RuntimeError("the two MWPM implementations disagree on the minimum weight")
+        compared += 1
+        identical += int(np.array_equal(exact_recovery, matching_recovery))
+        same_homology += int(np.array_equal(
+            code.homology(error ^ exact_recovery), code.homology(error ^ matching_recovery)
+        ))
+        exact_failed = bool(code.logical_failure(error[None, :], exact_recovery[None, :])[0])
+        matching_failed = bool(code.logical_failure(error[None, :], matching_recovery[None, :])[0])
+        exact_failures += int(exact_failed)
+        matching_failures += int(matching_failed)
+        same_outcome += int(exact_failed == matching_failed)
+    if not compared:
+        raise ValueError("no shot was within the exact decoder's defect limit")
+    return {
+        "compared_shots": compared,
+        "skipped_above_exact_limit": int(len(errors) - compared),
+        "identical_recovery_rate": identical / compared,
+        "same_homology_rate": same_homology / compared,
+        "same_failure_outcome_rate": same_outcome / compared,
+        "exact_p_fail": exact_failures / compared,
+        "pymatching_p_fail": matching_failures / compared,
+        "p_fail_difference": abs(exact_failures - matching_failures) / compared,
+    }
+
+
 def build_toric_benchmark_report(
     code: ToricCode, *, split: str, p_error: float, errors: np.ndarray, rbm_recoveries: np.ndarray,
     rbm_valid: np.ndarray, rbm_failures: np.ndarray, decoder_latency_ms: np.ndarray, parallel_chains: int,
