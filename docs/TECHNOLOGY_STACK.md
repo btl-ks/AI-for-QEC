@@ -151,3 +151,29 @@ NVIDIA 在 2026 年发布了 AI predecoder 与 PyMatching 组合的厂商研究�
 - 不因检测到 GPU 就自动切换 sampler。
 - 不把厂商 benchmark 数字写成项目性能结论。
 - 不丢弃 observable truth、circuit/DEM identity、soft information 或 domain provenance 后再生成摘要数据。
+
+## 7. 项目特有逻辑与成熟库的分工（2026-09-19）
+
+继续采用模块化单体；`ai_qec/` 定义稳定的领域契约，Notebook 和 CLI 只负责配置与编排。外部库经 adapter 接入，不让其对象成为数据集或 checkpoint 的持久身份。当前能力与目标能力仍以第 4 节区分。
+
+| 工作 | 采用成熟实现 | 项目需要保留的实现与验收 |
+|---|---|---|
+| 电路级采样与经典解码 | Stim 生成电路、DEM 和 detector 样本；PyMatching 批量 MWPM；Sinter 负责兼容基准接口 | `QECProblem`、sampler/decoder protocol、observable 语义、统一 LER 与 provenance；同一批样本交叉校验。见 P1.2–P1.9。[Stim](https://github.com/quantumlib/Stim)、[PyMatching](https://github.com/oscarhiggott/PyMatching)、[Sinter API](https://github.com/quantumlib/Stim/blob/main/doc/sinter_api.md) |
+| Toric code-capacity 论文路径 | PyTorch tensor、`Dataset`/`DataLoader`、优化器和模块 | 论文特有的错误链、同调判定、RBM 能量、CD-k、Gibbs 更新及其正确性测试；不要把电路级 DEM 假装成该论文的数据模型。现有批次收拢见 P4.12。 |
+| 数据与训练 | PyTorch 管理模型、批次和优化步骤；大数据按 shard 加载 | schema、按生成规格标识的数据集、无泄漏 split、checkpoint 身份与随机状态、恢复一致性。见 P0.14/P0.16、P1.3/P1.4、P3.5。 |
+| 实验产物 | 标准库负责路径、哈希和原子写入 | `dataset_manifest.json` 与 `run_manifest.json` 的项目契约、完整终态和阶段产物不可变；续跑关系见 P0.15/P0.17–P0.19。 |
+
+## 8. Python 包管理决策（2026-09-19）
+
+目标使用标准 `pyproject.toml` 声明包与依赖，使用 **uv** 管理项目环境、依赖锁、同步、运行和构建；现有 setuptools 继续充当 wheel 构建后端。[Python Packaging User Guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/)、[uv 项目与锁文件](https://docs.astral.sh/uv/concepts/projects/sync/)、[uv 命令概览](https://docs.astral.sh/uv/getting-started/features/)
+
+本次 WSL 仓库检查的现状：`pyproject.toml` 声明 `numpy`、`pyyaml` 与 `[torch]`、`[matching]` extras；`requirements.txt` 又单独列出基础依赖；没有 `uv.lock`，当前 shell 未找到 `uv`；脚本仍直接注入 `sys.path`。这些是待办状态，不表示 uv 工作流已可运行。
+
+落地规则：
+
+1. `pyproject.toml` 是直接依赖的唯一真相源：`[sim]` 放 Stim/PyMatching/Sinter，`[torch]` 放训练运行依赖；开发工具放 `dependency-groups.dev`，Notebook 的运行依赖也要显式归组。清理或自动生成 `requirements.txt`，不能手工维护两套版本。
+2. 提交并审查 `uv.lock`。P4.10 完成后，WSL fresh environment 用 `uv sync --locked` 安装所选 extras/groups；`uv build` 生成 wheel，P4.1 验证从 wheel 安装后的 `ai-qec` CLI。锁文件解决 Python 依赖重建，dataset/run/checkpoint 的身份仍由各自 manifest 记录。
+3. 先固定支持矩阵（Python 版本、WSL/Linux CPU、实际要支持的 CUDA 构建）并验证 PyTorch wheel 来源；uv 不管理 GPU 驱动。已有 `execution.conda_env: quantum` 仍是独立执行方式，不能把 uv 的 `.venv` 当作该 Conda 环境；迁移前分别做 CPU/CUDA smoke。[uv 的 PyTorch 指南](https://docs.astral.sh/uv/guides/integration/pytorch/)
+4. 正式 run 与论文导出记录并校验 lock hash、解释器和关键包/设备版本，连同代码 commit、配置、seed 和 dataset identity 保持可追溯。此项与 P0.10、P4.10 对齐。
+
+实施顺序及可验收任务见 [优化计划的近期工作总览](OPTIMIZATION_PLAN.md#近期工作总览2026-09-19)。当前单包仓库无需 uv workspace；当出现独立发布的多个 Python 包时再评估。

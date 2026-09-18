@@ -31,7 +31,7 @@ toric code-capacity data → joint RBM → Gibbs decoder / exact MWPM → logica
 | 文档 | 回答的问题 |
 |---|---|
 | [当前架构](docs/PROJECT_DESIGN.md) | 代码如何分层、文件放在哪里、哪些路径可执行？ |
-| [技术栈决策](docs/TECHNOLOGY_STACK.md) | Stim、Qiskit、Sinter、PyMatching、PyTorch 与 GPU backend 如何接入？ |
+| [技术栈决策](docs/TECHNOLOGY_STACK.md) | Stim、Qiskit、Sinter、PyMatching、PyTorch、GPU backend 和 Python 包管理如何接入？ |
 | [研究主题](docs/RESEARCH_TOPICS.md) | D1–D5 各研究什么？ |
 | [优化计划](docs/OPTIMIZATION_PLAN.md) | 下一步任务、依赖与验收条件是什么？ |
 | [论文复现设计](docs/PAPER_REPRODUCTION_DESIGN.md) | 论文 Notebook 与主项目实现如何协作？ |
@@ -57,7 +57,7 @@ pip install -r requirements.txt
 pip install -e '.[torch]'
 ```
 
-运行论文 Notebook 时，请在所选 Python 内核对应的环境中执行上述 editable 安装；这样首个单元格才能从任意工作目录导入 `ai_qec` 并定位项目源码。
+运行论文 Notebook 时，请在所选 Python 内核对应的环境中执行上述 editable 安装；这样首个单元格才能从任意工作目录导入 `ai_qec` 并定位项目源码。当前命令仍是现行安装方法；目标 `pyproject.toml` + uv 工作流及完成条件见[技术栈决策](docs/TECHNOLOGY_STACK.md#8-python-包管理决策2026-09-19)和 P4.10。
 
 ## 选择 Conda 执行环境
 

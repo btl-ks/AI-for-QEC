@@ -2,7 +2,7 @@
 
 > 本文是任务路线图，不是当前目录树或能力说明。当前代码分层与文件放置规则见 [PROJECT_DESIGN.md](PROJECT_DESIGN.md)，外部工具边界见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)。任务完成状态必须以代码、测试和对应 Exit Criteria 为准。
 
-> 版本：v3（2026-09-15）
+> 版本：v3.1（2026-09-19；新增架构与依赖管理执行摘要）
 > 读者：项目维护者、协作者、coding agent
 > 依据：2026-09-14 架构与代码复核，以及 2026-09-15 技术栈核验（摘要见 §1 与 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)）
 > 规则：每个 Phase 有退出标准（Exit Criteria）；未满足时，不开始依赖它的后续工作。
@@ -63,6 +63,20 @@ target 从 0 升至 0.005 时平均探测密度上升约 54%；仅用密度预�
 
 **顺序理由**：先建"尺子"（P2 基准），再调模型（P3）。否则会在有泄漏的基准上调参，得到看似成立、实则不成立的结果。
 P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进。
+
+### 近期工作总览（2026-09-19）
+
+这是现有任务的执行摘要，不另建一套路线图。当前已完成 P4.12：Notebook 与脚本共用 Toric split、PyTorch `DataLoader` 批次和 RBM 训练器；其余能力按下面的任务 ID 验收。
+
+| 顺序 | 要做的事 | 对应任务及完成证据 |
+|---|---|---|
+| 1 | 收紧数据与 run 生命周期，再做长时间论文训练 | P0.14 按生成规格复用数据；P0.15/18 收敛中断并明确 `resumed_from`；P0.16/17 恢复训练与解码；P0.19 防止后续阶段改写已登记产物。用中断/续跑与 hash 回归测试验收。 |
+| 2 | 固定 Python 依赖和安装入口，可与第 1 项并行 | P1.1/P3.1 声明 `[sim]`、`[torch]`；P4.10 采用 `pyproject.toml` + uv、提交锁文件并验证 CPU/CUDA 支持矩阵；P4.1 提供 wheel 可安装的 `ai-qec` CLI，移除脚本的 `sys.path` 注入。 |
+| 3 | 接入真实 QEC 库，建立一条电路级纵切面 | P1.2–P1.9：Stim 采样和 DEM、schema v2/分片、PyMatching MWPM、Sinter 兼容与 LER；用相同 shots、observable truth 和协议验证。 |
+| 4 | 建立可恢复的神经训练与公平对照 | P3.2–P3.5 将注册表、输入表示、模型、训练器放入共享包；P3.6/3.7 在 P2 冻结的 split/benchmark 上做校准与对照。论文 RBM 专属 CD-k/Gibbs 保持独立测试。 |
+| 5 | 固定工程门禁与交付 | P4.2–P4.5、P4.9：lint/type/测试、wheel/CLI fresh install、CI 与文档；P0.10/P4.10 让论文包引用经验证的依赖锁和运行身份。 |
+
+库与项目代码的分工、uv/Conda 边界见 [技术栈决策 §7–8](TECHNOLOGY_STACK.md#7-项目特有逻辑与成熟库的分工2026-09-19)。第 2 项可并行推进；P1、P3 的 Phase gate 仍按本计划执行。以上条目未因写入本表而变成已完成。
 
 ### 发布语义门槛
 
@@ -130,7 +144,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 
 **内部依赖**：P1.1 → P1.2；P1.2 → P1.3/P1.5；P1.3 → P1.4；P1.2 + P1.5 → P1.6；P1.3 + P1.5 → P1.9；P1.8 的 label provenance 约束前置于相应 P1.7 测试。
 
-- [ ] **P1.1 依赖分组**：`pyproject.toml` 增加 optional extras：`[sim]` = stim、pymatching、sinter；`[torch]` 留给 P3；`[dev]` 留给 P4。依赖存在不等于 capability 已实现，registry 与 smoke 必须同时通过。
+- [ ] **P1.1 依赖分组**：`pyproject.toml` 增加 `[sim]` optional extra = stim、pymatching、sinter；`[torch]` 留给 P3，开发工具放 `dependency-groups.dev` 并由 P4.10 锁定。依赖存在不等于 capability 已实现，registry 与 smoke 必须同时通过。
 - [ ] **P1.2 StimQECBackend**：以 `stim.Circuit.generated("surface_code:rotated_memory_z", distance=..., rounds=..., after_clifford_depolarization=..., before_round_data_depolarization=..., before_measure_flip_probability=..., after_reset_flip_probability=...)` 生成电路 [2]；用 `compile_detector_sampler().sample(..., separate_observables=True, bit_packed=True)` 采样。code geometry、detector count/coordinates、observable count 和 DEM 必须来自编译后的 circuit，不能再用手写近似计数作为数据真相源。
 - [ ] **P1.3 数据 schema v2**：bit-packed detector events、observable flips、每样本噪声参数、电路与 DEM 的 sha256、`schema_version`、shape/dtype 及 shard 索引；为 soft readout、leakage、coordinates/features、calibration/device/time/domain ID 保留可选字段。摘要特征改为可重建的 preprocessing 派生视图，不能替代 raw events。由 schema 模块统一定义 writer/loader/evaluator 的键和校验；`QECSample` 要么成为唯一契约，要么删除，避免双 schema。
 - [ ] **P1.4 分片写盘**：大样本量（如 1M）按 shard 写入，生成与加载均不要求全量驻留内存。
@@ -187,7 +201,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 
 **内部依赖**：P3.1 + P3.2 + P3.3 → P3.4/P3.5 → P3.6/P3.7；P3.7 还依赖已退出的 P2 基准与冻结 seed/split/protocol。
 
-- [ ] **P3.1 依赖**：`[torch]` extra；需要图模型时增加独立 `[graph]` extra；GPU 检测与显式 CPU 执行。
+- [ ] **P3.1 依赖**：`[torch]` extra；需要图模型时增加独立 `[graph]` extra；明确 CPU/CUDA wheel 来源、设备能力检查与显式 CPU 执行，纳入 P4.10 的锁定支持矩阵。
 - [ ] **P3.2 注册表与能力解析**：装饰器注册（`@register_model("transformer_decoder")`），由 `ResolvedExperimentSpec` 构建；trainer/evaluator/exporter 都必须通过同一 registry，禁止直接实例化具体模型。`family`、`implementation`、input representation、outputs 与 checkpoint 不匹配即报错。
 - [ ] **P3.3 输入表示**：detector events 时空张量和 detector graph + 探测器坐标嵌入（Stim `get_detector_coordinates()`）；side-information schema 能携带 soft readout、leakage 与 calibration/domain context，缺失时使用显式 mask。
 - [ ] **P3.4 第一条神经纵切面**：优先实现 AI edge-weight estimator 或局部 predecoder + PyMatching，输出 edge weights/residual syndrome 与 diagnostics；从 d = 3 起步。随后在同一协议下增加 detector-graph GNN 与 recurrent Transformer 直接 decoder 作为比较模型，研究依据见 [5,6]，predecoder 工程路线参考厂商公开结果 [7]。
@@ -213,7 +227,8 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [x] **P4.0 工作区归位与论文 smoke 纵切面**：将可复用实现归位到 `ai_qec/`，数据写入 `datasets/`，论文资料与调用型 Notebook 放入 `paper/`；接入 Torlai–Melko toric code-capacity RBM 单链和独立并行链 smoke，以及小规模精确 MWPM 对照；记录当前架构、技术栈、论文路径和一致性核对。本项只验收这些 smoke 路径，不表示 P1–P3 或 Phase 4 已退出。
 - [x] **P4.11 文档去重**：将工作区 Git/写入/产物放置规则归入 `PROJECT_DESIGN.md`，将文档索引归入根 `README.md`；修正所有引用，并标识优化计划的历史基线及论文 smoke 与 P4.0 的关系。保留研究主题、技术栈、任务计划和论文复现设计的独立职责。
 - [x] **P4.12 RBM 数据与训练路径收拢**：Notebook 与脚本共用 Toric split 生成器和 RBM 训练器；训练通过 PyTorch `DataLoader` 组织小批次，一次构造 float32 输入、减少逐批设备同步，并按样本数汇总不等长 batch 指标；Notebook 调用共享 Gibbs 解码器。验证独立 split 随机流、训练确定性、非整除 batch，以及 CPU/CUDA Notebook smoke。本项不改变 run 生命周期与产物格式。
-- [ ] **P4.1** 提供安装后的统一 `ai-qec` CLI（run/generate/train/evaluate/benchmark/export 子命令），以 `pip install -e '.[dev,sim]'`（P1/P2）或 `pip install -e '.[dev,sim,torch]'`（P3）替代 scripts 中的 `sys.path` 注入；package data 中不得引用 wheel 外的默认配置，各 extra 的支持矩阵必须测试。
+- [x] **P4.13 架构与包管理执行摘要**：在技术栈文档明确领域代码与 Stim/PyMatching/Sinter/PyTorch 的分工、`pyproject.toml` + uv 的目标方案及 Conda/CUDA 边界；在本计划索引依赖关系和验收任务。此项仅为文档决策，不表示 uv 已安装、依赖已锁定或后续能力已实现。
+- [ ] **P4.1** 提供安装后的统一 `ai-qec` CLI（run/generate/train/evaluate/benchmark/export 子命令）；开发环境通过 P4.10 的 `uv sync --locked` 安装所选 extras/groups，另在仓库外安装 wheel 验证 CLI。移除 scripts 中的 `sys.path` 注入；package data 不得引用 wheel 外的默认配置，各 extra 的支持矩阵必须测试。
 - [ ] **P4.2** ruff + pytest + typing + coverage；测试按 `unit/`、`integration/`、`regression/`、`smoke/` 分层，并设置最低覆盖门槛。smoke 必须经过正式 runner，而非手工串联子脚本。
 - [ ] **P4.3** 回归测试：固定 seed 小数据集的 golden metrics，按容差比较；golden fixture 使用明确 allowlist，不得因全局 `*.npz` ignore 而静默缺失。
 - [ ] **P4.4** pre-commit：ruff、大文件拦截；默认禁止提交 `*.npz` / `*.pt`，仅允许 P4.3 中经审计、尺寸受限且列入显式 allowlist 的 golden fixture 例外。
@@ -222,10 +237,10 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [ ] **P4.7** 大数据集与 checkpoint 版本管理（待决策 DEC-2）；无论采用本地 hash、DVC 或对象存储，run 中只引用不可变 content ID。P0.7 默认先使用本地 immutable + sha256，不等待此决策。
 - [ ] **P4.8** 占位模块收缩：P0.3 已保证 fail-loud；本任务删除无调用方的空壳文件，或移到 roadmap/实验命名空间。保留的公共模块必须有 owner、状态、调用方和测试（待决策 DEC-4）。
 - [ ] **P4.9** 更新 README，补齐 `docs/datasets/`、`docs/models/`；README 的能力表由 registry/capability manifest 生成或测试，避免再次与实现漂移。
-- [ ] **P4.10** 可重建依赖：负责生成、审查和维护项目级 `[sim]`、`[torch]`、`[dev]` extras 与锁定环境；P0.10 只负责记录当前环境快照并消费这里产出的 lock。源码版本只保留一个真相源；正式 run 与 paper package 记录并验证 lock/hash。
+- [ ] **P4.10** 可重建依赖：使用 `pyproject.toml` + uv 管理 `[sim]`、`[torch]` extras 和 `dependency-groups.dev`，提交并审查 `uv.lock`；解决 `requirements.txt` 与项目元数据重复声明。验证 WSL fresh environment、支持的 Python/CPU/CUDA 矩阵及 PyTorch wheel 来源，不自动替换现有 Conda `quantum` 执行路径。P0.10 消费锁定结果；正式 run 与 paper package 记录并验证 lock/hash、解释器与关键包版本。
 
 **Exit Criteria**
-- 在 clean checkout / fresh environment 中分别用 `.[sim]` 完成真实 Stim/MWPM smoke、用 `.[sim,torch]` 完成神经 smoke，并且只通过 `ai-qec` CLI 操作；开发环境另装 `.[dev,sim,torch]`，源码与测试中不再依赖 `sys.path` 注入。
+- 在 clean checkout / fresh environment 中用已提交的 `uv.lock` 分别同步 `[sim]` 与 `[sim,torch]`，通过 `ai-qec` CLI 完成真实 Stim/MWPM 和神经 smoke；开发工具从 `dependency-groups.dev` 安装。再从构建的 wheel 安装验证 CLI，源码与测试中不再依赖 `sys.path` 注入。
 - lint、typing、unit、integration、regression、runner smoke、构建与 paper-package 测试均由 CI 强制执行并通过。
 - paper package 在仓库外从锁定依赖安装，验证全部 hash，不含私有绝对路径，并重算 scope 声明的全部结果。
 - 所有公开 capability 均可执行并有测试，或明确 fail loudly；不存在 placeholder/no-op success。
