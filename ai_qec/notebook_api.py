@@ -8,6 +8,8 @@ from ai_qec.benchmarks.decoding.exact_posterior import (
 )
 from ai_qec.benchmarks.decoding.toric import (
     build_toric_benchmark_report,
+    logical_class_counts,
+    logical_class_labels,
     mwpm_reference_recoveries,
     mwpm_tie_sensitivity,
     write_benchmark_outputs,
@@ -15,6 +17,7 @@ from ai_qec.benchmarks.decoding.toric import (
 from ai_qec.data.datasets.toric_dataset import (
     SPLIT_SEED_OFFSETS,
     build_toric_dataset_manifest,
+    code_from_manifest,
     load_toric_split,
     staged_dataset_dir,
     validate_toric_dataset,
@@ -77,6 +80,7 @@ __all__ = [
     "build_toric_dataset_manifest",
     "compare_with_source_predictions",
     "closed_cycle_basis",
+    "code_from_manifest",
     "config_hash",
     "copy_source_checkpoint",
     "data_output_dir",
@@ -92,6 +96,8 @@ __all__ = [
     "load_model",
     "load_source_run",
     "load_toric_split",
+    "logical_class_counts",
+    "logical_class_labels",
     "mwpm_reference_recoveries",
     "mwpm_tie_sensitivity",
     "prepare_experiment",

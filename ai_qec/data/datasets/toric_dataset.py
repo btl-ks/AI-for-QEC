@@ -16,7 +16,8 @@ import uuid
 import numpy as np
 
 from ai_qec.data.schema.manifest import DatasetManifest
-from ai_qec.qec.codes.toric_code import ToricCode
+from ai_qec.qec.codes.registry import build_code
+from ai_qec.qec.codes.stabilizer import StabilizerCode
 from ai_qec.utils.config import config_hash, generation_hash, generation_spec, split_sample_counts
 
 
@@ -24,6 +25,23 @@ TORIC_DATASET_SCHEMA_VERSION = 1
 TORIC_SPLIT_FIELDS = {"split", "dataset_id", "physical_error", "syndrome", "lattice_size", "p_error"}
 # Per-split offsets added to the base seed so train/validation/test are independent random streams.
 SPLIT_SEED_OFFSETS = {"train": 0, "validation": 10_000, "test": 20_000}
+
+
+def code_from_manifest(dataset_dir: str | Path) -> StabilizerCode:
+    """Build the code a dataset was generated with, as recorded in its manifest.
+
+    The manifest stores the code's name and distance, so a split can be loaded
+    without being told which code it belongs to and without widening the on-disk
+    schema.
+    """
+    manifest_path = Path(dataset_dir) / "dataset_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"Dataset manifest is missing: {manifest_path}")
+    context = json.loads(manifest_path.read_text(encoding="utf-8")).get("context", {}).get("code", {})
+    name, distance = context.get("code"), context.get("distance")
+    if not isinstance(name, str) or not isinstance(distance, int):
+        raise ValueError(f"Dataset manifest does not record a code: {manifest_path}")
+    return build_code({"qec": {"code": name, "distance": distance}})
 
 
 @contextmanager
@@ -71,7 +89,7 @@ def write_toric_split(
 
 
 def build_toric_dataset_manifest(
-    config: dict[str, Any], code: ToricCode, files: dict[str, dict[str, Any]], *, extra_context: dict[str, Any] | None = None,
+    config: dict[str, Any], code: StabilizerCode, files: dict[str, dict[str, Any]], *, extra_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble the provenance manifest for split records written by ``write_toric_split``."""
     context = {
@@ -141,10 +159,13 @@ def validate_toric_dataset(dataset_dir: str | Path, config: dict[str, Any]) -> d
     if manifest.get("dataset_id") != config["data"]["dataset_id"]:
         raise ValueError("Dataset ID does not match this run")
 
-    size = int(manifest.get("context", {}).get("code", {}).get("distance", -1))
+    recorded = manifest.get("context", {}).get("code", {})
+    size = int(recorded.get("distance", -1))
     if size != int(config["qec"]["distance"]):
-        raise ValueError("Dataset lattice size does not match config")
-    code = ToricCode(distance=size)
+        raise ValueError("Dataset code distance does not match config")
+    if recorded.get("code") != config["qec"]["code"]:
+        raise ValueError("Dataset code does not match config")
+    code = build_code(config)
     expected_rate = float(config["noise"]["p_error"])
     for split, count in manifest.get("sample_counts", {}).items():
         path = root / f"{split}.npz"
@@ -173,8 +194,11 @@ def validate_toric_dataset(dataset_dir: str | Path, config: dict[str, Any]) -> d
     return manifest
 
 
-def load_toric_split(dataset_dir: str | Path, split: str) -> ToricDataset:
-    """Load one already validated raw toric-code split."""
+def load_toric_split(dataset_dir: str | Path, split: str, code: StabilizerCode | None = None) -> ToricDataset:
+    """Load one already validated raw error/syndrome split.
+
+    ``code`` defaults to whatever the dataset's manifest says it was generated with.
+    """
     path = Path(dataset_dir) / f"{split}.npz"
     with np.load(path, allow_pickle=False) as payload:
         if set(payload.files) != TORIC_SPLIT_FIELDS:
@@ -190,7 +214,10 @@ def load_toric_split(dataset_dir: str | Path, split: str) -> ToricDataset:
             lattice_size=size,
             p_error=float(payload["p_error"].item()),
         )
-    code = ToricCode(distance=dataset.lattice_size)
+    if code is None:
+        code = code_from_manifest(dataset_dir)
+    if code.distance != dataset.lattice_size:
+        raise ValueError(f"Split distance {dataset.lattice_size} does not match code {code.name} d={code.distance}")
     if errors.ndim != 2 or errors.shape[1] != code.num_data_qubits or not len(errors):
         raise ValueError(f"Invalid physical-error shape: {path}")
     if syndrome.shape != (len(errors), code.num_syndrome_bits) or not np.array_equal(code.syndrome(errors), syndrome):

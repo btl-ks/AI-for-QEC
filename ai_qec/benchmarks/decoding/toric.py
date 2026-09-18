@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 import math
 from pathlib import Path
@@ -11,6 +12,7 @@ import numpy as np
 
 from ai_qec.models.decoders.classical.mwpm import ExactToricMWPMDecoder
 from ai_qec.models.decoders.protocol import DecodeRequest
+from ai_qec.qec.codes.stabilizer import StabilizerCode
 from ai_qec.qec.codes.toric_code import ToricCode
 from ai_qec.utils.config import write_json
 
@@ -26,17 +28,26 @@ def wilson_interval(failures: int, total: int, *, z: float = 1.96) -> tuple[floa
     return centre - half_width, centre + half_width
 
 
-def homology_counts(code: ToricCode, errors: np.ndarray, recoveries: np.ndarray) -> dict[str, int]:
-    """Count the four closed-cycle homology sectors."""
+def logical_class_labels(code: StabilizerCode) -> list[str]:
+    """Return the ``2^k`` class labels, most significant logical bit first."""
+    return ["".join(bits) for bits in itertools.product("01", repeat=code.num_logical_bits)]
+
+
+def logical_class_counts(code: StabilizerCode, errors: np.ndarray, recoveries: np.ndarray) -> dict[str, int]:
+    """Count how many residual cycles land in each logical class.
+
+    For the toric code the two logical bits are the winding parities, so the labels
+    are the familiar homology sectors ``00``-``11``; a code with one logical bit
+    reports ``0`` and ``1`` instead.
+    """
+    labels = logical_class_labels(code)
     if not len(errors):
-        return {"00": 0, "01": 0, "10": 0, "11": 0}
-    values = code.homology(errors ^ recoveries)
-    return {
-        "00": int(np.sum((values[:, 0] == 0) & (values[:, 1] == 0))),
-        "01": int(np.sum((values[:, 0] == 0) & (values[:, 1] == 1))),
-        "10": int(np.sum((values[:, 0] == 1) & (values[:, 1] == 0))),
-        "11": int(np.sum((values[:, 0] == 1) & (values[:, 1] == 1))),
-    }
+        return dict.fromkeys(labels, 0)
+    values = code.logical_class(errors ^ recoveries)
+    weights = 1 << np.arange(code.num_logical_bits - 1, -1, -1)
+    index = values.astype(np.int64) @ weights
+    counts = np.bincount(index, minlength=len(labels))
+    return {label: int(count) for label, count in zip(labels, counts, strict=True)}
 
 
 def mwpm_reference_recoveries(code: ToricCode, syndromes: np.ndarray) -> tuple[np.ndarray, int, int]:
@@ -134,13 +145,13 @@ def build_toric_benchmark_report(
             "decoder_latency_mean_ms": float(np.mean(decoder_latency_ms)),
             "decoder_latency_p50_ms": float(np.percentile(decoder_latency_ms, 50)),
             "decoder_latency_p95_ms": float(np.percentile(decoder_latency_ms, 95)),
-            "homology_counts": homology_counts(code, errors[rbm_valid], rbm_recoveries[rbm_valid]),
+            "homology_counts": logical_class_counts(code, errors[rbm_valid], rbm_recoveries[rbm_valid]),
         },
         "mwpm_exact": {
             "logical_failures": int(np.sum(mwpm_failures)),
             "logical_error_rate": float(np.mean(mwpm_failures)),
             "wilson_95": list(wilson_interval(int(np.sum(mwpm_failures)), total)),
-            "homology_counts": homology_counts(code, errors, mwpm_recoveries),
+            "homology_counts": logical_class_counts(code, errors, mwpm_recoveries),
             "max_exact_defects": int(max_exact_defects),
             "method": "exact bitmask-DP MWPM; PyMatching MWPM for syndromes above max_exact_defects",
             "pymatching_fallback_shots": int(mwpm_fallback_shots),

@@ -210,6 +210,9 @@ def _validate_execution(value: Any) -> None:
         )
 
 
+CODE_CAPACITY_CODES = {"toric_code", "surface_code", "repetition_code"}
+
+
 def _validate_qec(value: Any) -> None:
     data = _mapping(value, "qec")
     _keys(data, "qec", allowed={"code", "distance", "rounds", "task"}, required={"code", "distance", "rounds", "task"})
@@ -226,6 +229,15 @@ def _validate_qec(value: Any) -> None:
             _fail("qec.rounds", "toric code-capacity experiments require exactly one ideal round")
         if task != "code_capacity":
             _fail("qec.task", "toric_code requires 'code_capacity'")
+        return
+    if task == "code_capacity":
+        # surface and repetition carry a real parity-check matrix, so they decode too
+        if rounds != 1:
+            _fail("qec.rounds", "code-capacity experiments require exactly one ideal round")
+        if code == "surface_code" and (distance < 3 or distance % 2 == 0):
+            _fail("qec.distance", "rotated surface-code distance must be an odd integer of at least 3")
+        if code == "repetition_code" and distance < 2:
+            _fail("qec.distance", "repetition-code distance must be at least 2")
         return
     if distance % 2 == 0:
         _fail("qec.distance", "must be odd")
@@ -475,8 +487,10 @@ def _validate_cross_fields(config: dict[str, Any], flow: tuple[ResolvedFlowStep,
         implementation = config["model"]["implementation"]
         trainer = config["training"]["trainer"]
         if generator == "toric_code_capacity":
-            if config["qec"]["code"] != "toric_code" or config["qec"]["task"] != "code_capacity":
-                _fail("qec", "toric_code_capacity requires qec.code='toric_code' and task='code_capacity'")
+            # the name is kept so existing content-addressed datasets stay valid; any
+            # code that supplies a parity-check matrix can use this generator
+            if config["qec"]["code"] not in CODE_CAPACITY_CODES or config["qec"]["task"] != "code_capacity":
+                _fail("qec", f"toric_code_capacity requires task='code_capacity' and one of {sorted(CODE_CAPACITY_CODES)}")
             if config["noise"].get("model") != "phase_flip":
                 _fail("noise", "toric_code_capacity requires phase_flip noise")
             if config["data"]["preprocessing"]["representation"] != "error_syndrome":
