@@ -10,6 +10,7 @@ paper/
 │   └── <论文标题>.pdf              # 仅存论文原文及补充材料 PDF
 ├── srcs/
 │   └── <paper_id>.ipynb           # 每篇论文一个实验 Notebook；不放算法 .py
+├── summary/                     # 论文实验复现总结及其图表、结果索引
 ├── templates/                    # 既有论文导出模板
 └── releases/                     # 既有不可变导出包，属于生成产物
 
@@ -20,7 +21,7 @@ runs/<run_id>/                     # 正式运行的快照、日志、指标、c
 docs/                              # 项目设计文档；paper/docs 不放项目说明
 ```
 
-其中 `paper/templates/` 和 `paper/releases/` 保留当前导出机制。`paper/docs/` 只存论文文件；Notebook 的使用说明放在主目录 `docs/` 下。
+其中 `paper/templates/` 和 `paper/releases/` 保留当前导出机制。`paper/docs/` 只存论文文件；论文实验总结放在 `paper/summary/`，Notebook 的使用说明放在主目录 `docs/` 下。
 
 ## Notebook 入口与实现边界
 
@@ -97,7 +98,7 @@ paper/srcs/torlai_melko_2017.ipynb（程序入口与最上层逻辑；每个 L �
 | 平台加速验证 | 同一 Toric 物理问题、显式 64 链 PyTorch Gibbs、同一内部 decoder 契约 | 有可用 GPU 时单独评估 CUDA 吞吐、端到端延迟和恢复链分布 |
 | 电路级平台 | 已有可选 Toric code-capacity PyMatching adapter；尚未接入 Stim 电路 | Stim/DEM、DEM 版 PyMatching、Sinter adapter 和多轮噪声按优化计划分别实现 |
 
-Torlai–Melko 已完成 L=4、L=6 各 11 个错误率的论文规模网格（单一训练 seed），结果、问题与局限见 [复现报告](TORLAI_MELKO_2017_REPORT.md)；项目仍没有 Stim/DEM adapter，也不将 smoke 指标当作论文性能结论。
+Torlai–Melko 已完成 L=4、L=6 各 11 个错误率的论文规模网格（单一训练 seed），结果、问题与局限见 [复现报告](../paper/summary/TORLAI_MELKO_2017_REPORT.md)；项目仍没有 Stim/DEM adapter，也不将 smoke 指标当作论文性能结论。
 
 ## 与现有优化计划的关系
 
