@@ -26,3 +26,5 @@ dist/
 # Rendered report builds; regenerate from the Markdown source when needed
 /paper/summary/*.html
 /paper/summary/*.pdf
+/paper/summary/**/*.html
+/paper/summary/**/*.pdf

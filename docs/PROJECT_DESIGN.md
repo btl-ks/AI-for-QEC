@@ -188,7 +188,8 @@ checkpoint、预测、图表和指标归属产生它们的 run。脚本 runner �
 ```text
 paper/docs/<paper>.pdf
 paper/srcs/<paper-id>.ipynb
-paper/summary/<paper-id>_REPORT.md   # 复现总结；图表与结果索引放在此目录下
+paper/summary/<paper-id>_REPORT/<paper-id>_REPORT.md  # 复现总结
+paper/summary/assets/<paper-id>/                       # 静态图表与结果索引
 paper/templates/                     # 最小复现包模板
 paper/releases/                      # 本地不可变导出包；Git 忽略
 ```

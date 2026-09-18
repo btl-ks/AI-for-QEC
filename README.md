@@ -35,7 +35,7 @@ toric code-capacity data → joint RBM → Gibbs decoder / exact MWPM → logica
 | [研究主题](docs/RESEARCH_TOPICS.md) | D1–D5 各研究什么？ |
 | [优化计划](docs/OPTIMIZATION_PLAN.md) | 下一步任务、依赖与验收条件是什么？ |
 | [论文复现设计](docs/PAPER_REPRODUCTION_DESIGN.md) | 论文 Notebook 与主项目实现如何协作？ |
-| [Torlai–Melko 复现报告](paper/summary/TORLAI_MELKO_2017_REPORT.md) | RBM 解码器复现的设计、问题、结果与局限是什么？ |
+| [Torlai–Melko 复现报告](paper/summary/TORLAI_MELKO_2017_REPORT/TORLAI_MELKO_2017_REPORT.md) | RBM 解码器复现的设计、问题、结果与局限是什么？ |
 
 开发和架构审阅先读 `AGENTS.md` 与当前架构；选择工具时读技术栈决策，执行任务时读优化计划中的对应验收条件。
 

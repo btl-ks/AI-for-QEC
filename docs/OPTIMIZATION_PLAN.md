@@ -2,7 +2,7 @@
 
 > 本文是任务路线图，不是当前目录树或能力说明。当前代码分层与文件放置规则见 [PROJECT_DESIGN.md](PROJECT_DESIGN.md)，外部工具边界见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)。任务完成状态必须以代码、测试和对应 Exit Criteria 为准。
 
-> 版本：v3.1（2026-09-19；新增架构与依赖管理执行摘要）
+> 版本：v3.2（2026-09-19；对齐论文总结目录）
 > 读者：项目维护者、协作者、coding agent
 > 依据：2026-09-14 架构与代码复核，以及 2026-09-15 技术栈核验（摘要见 §1 与 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)）
 > 规则：每个 Phase 有退出标准（Exit Criteria）；未满足时，不开始依赖它的后续工作。
@@ -228,6 +228,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [x] **P4.11 文档去重**：将工作区 Git/写入/产物放置规则归入 `PROJECT_DESIGN.md`，将文档索引归入根 `README.md`；修正所有引用，并标识优化计划的历史基线及论文 smoke 与 P4.0 的关系。保留研究主题、技术栈、任务计划和论文复现设计的独立职责。
 - [x] **P4.12 RBM 数据与训练路径收拢**：Notebook 与脚本共用 Toric split 生成器和 RBM 训练器；训练通过 PyTorch `DataLoader` 组织小批次，一次构造 float32 输入、减少逐批设备同步，并按样本数汇总不等长 batch 指标；Notebook 调用共享 Gibbs 解码器。验证独立 split 随机流、训练确定性、非整除 batch，以及 CPU/CUDA Notebook smoke。本项不改变 run 生命周期与产物格式。
 - [x] **P4.13 架构与包管理执行摘要**：在技术栈文档明确领域代码与 Stim/PyMatching/Sinter/PyTorch 的分工、`pyproject.toml` + uv 的目标方案及 Conda/CUDA 边界；在本计划索引依赖关系和验收任务。此项仅为文档决策，不表示 uv 已安装、依赖已锁定或后续能力已实现。
+- [x] **P4.14 论文总结目录迁移**：将 Torlai–Melko 报告 Markdown 归入同名子目录，修复报告内资源/源码相对链接及项目文档入口；嵌套目录的生成版 PDF/HTML 保持 Git 忽略。以仓库内相对链接校验与 `git check-ignore` 验收。
 - [ ] **P4.1** 提供安装后的统一 `ai-qec` CLI（run/generate/train/evaluate/benchmark/export 子命令）；开发环境通过 P4.10 的 `uv sync --locked` 安装所选 extras/groups，另在仓库外安装 wheel 验证 CLI。移除 scripts 中的 `sys.path` 注入；package data 不得引用 wheel 外的默认配置，各 extra 的支持矩阵必须测试。
 - [ ] **P4.2** ruff + pytest + typing + coverage；测试按 `unit/`、`integration/`、`regression/`、`smoke/` 分层，并设置最低覆盖门槛。smoke 必须经过正式 runner，而非手工串联子脚本。
 - [ ] **P4.3** 回归测试：固定 seed 小数据集的 golden metrics，按容差比较；golden fixture 使用明确 allowlist，不得因全局 `*.npz` ignore 而静默缺失。
