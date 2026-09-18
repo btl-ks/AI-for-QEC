@@ -28,8 +28,8 @@ docs/                              # 项目设计文档；paper/docs 不放项�
 每篇论文的 Notebook 应：
 
 1. 引用原论文，声明独立复现的范围、参数来源和不确定项；在配置单元格中定义或加载参数并严格校验，以实际运行配置作为参数、实验网格和随机种子的真相源。
-2. 创建独立 run，按配置执行数据生成、训练、解码、benchmark 和报告阶段。Notebook 可以直接展开 split、batch、epoch、minibatch、采样步及测试样本层级的循环，使论文算法的步骤和执行顺序可见。
-3. 在循环体中调用 `ai_qec/` 的库函数完成物理采样与 syndrome、模型单步更新/采样、恢复链兼容性判定、数据写入/校验、checkpoint 元数据和指标构建。Notebook 只决定何时调用，不重写这些操作的语义。
+2. 创建独立 run，按配置执行数据生成、训练、解码、benchmark 和报告阶段。Notebook 展示论文算法的步骤与阶段顺序；split/batch、epoch/minibatch 和 Gibbs 采样循环复用 `ai_qec/` 的共享实现。
+3. 调用 `ai_qec/` 的库函数完成物理采样与 syndrome、模型训练/解码、数据写入/校验、checkpoint 元数据和指标构建。Notebook 保留逐测试样本的记录与展示，不维护第二份算法实现。
 4. 核查 dataset manifest、checkpoint、metrics、predictions 和 run 状态，并在同一测试数据身份下展示结果；保存的图表也应记录在对应 run 中。
 
 `scripts/run_experiment.py` 是通用配置和批量实验的另一入口。它与论文 Notebook 可以有不同的上层编排，但必须复用同一套库函数、配置校验、数据/schema 契约、checkpoint 身份检查及 benchmark 指标定义；两条入口不能各自维护一套算法或指标公式。论文特有的控制流可以留在 Notebook，不要求藏进通用 runner。若某段控制流需要被多个入口复用，再将其提取为 `ai_qec/` 中有明确调用方的函数。
@@ -48,8 +48,8 @@ Notebook 不应在单元格中定义 `ToricCode`、RBM 结构、CD-k 单步算�
 | 原始错误链与 syndrome schema、分片、manifest | `ai_qec/data/datasets/toric_dataset.py`、`data/generators/toric_generator.py` | 读取数据身份与形状，不手写 NPZ 格式 |
 | `(e,S)` 二进制输入构造 | `ai_qec/data/datasets/toric_dataset.py` | 显示少量样本/统计 |
 | RBM 联合模型、条件概率、参数保存 | `ai_qec/models/decoders/generative/rbm.py`，`models/registry.py` | 从配置选择模型并载入 checkpoint |
-| CD-k 单步更新、checkpoint 元数据与选择规则 | `ai_qec/training/trainers/rbm.py` 及 `training/` 相关模块 | 组织 epoch/minibatch 循环并展示训练记录 |
-| 固定 syndrome 的 Gibbs 单步采样、兼容性判定与 timeout 契约 | `ai_qec/models/decoders/generative/rbm_decoder.py` | 组织采样步/样本循环并显示 timeout 统计 |
+| CD-k 训练、checkpoint 元数据与选择规则 | `ai_qec/training/trainers/rbm.py` 及 `training/` 相关模块 | 调用共享训练器并展示训练记录 |
+| 固定 syndrome 的 Gibbs 采样、兼容性判定与 timeout 契约 | `ai_qec/models/decoders/generative/rbm_decoder.py` | 调用共享解码器并显示 timeout 统计 |
 | 周期边界 MWPM 对照 | `ai_qec/models/decoders/classical/mwpm.py` | 在同一测试集上调用对照 |
 | `e XOR r` 同调失败率、区间、Fig. 3/4 数据 | `ai_qec/benchmarks/decoding/` | 绘制曲线与同调直方图 |
 | 论文配置、网格、运行参数和导出 allowlist | Notebook 内联配置、`ai_qec/utils/config.py`、`scripts/export_paper.py` | 校验内联配置并读取 `run_manifest.json`；脚本 runner 的独立配置仍在 `configs/` |
@@ -61,9 +61,9 @@ Notebook 不应在单元格中定义 `ToricCode`、RBM 结构、CD-k 单步算�
 ```text
 paper/srcs/torlai_melko_2017.ipynb（程序入口与最上层逻辑；每个 L × p_error × seed 一个可追溯 run）
     ├── RAW_CONFIG → resolve_experiment_spec → RunRecord.create：runs/<run_id>/、config.yaml 与 run_manifest.json
-    ├── 数据生成循环：noise.sample_errors → code.syndrome → write_toric_split → validate_toric_dataset（Algorithm 1 第 1–2 行）
-    ├── 训练循环：epoch/minibatch → RBM.contrastive_divergence_step → checkpoint
-    ├── 解码循环：RBM.sample_hidden / sample_error → first_compatible_chain（Algorithm 1 第 3–8 行）
+    ├── 数据生成阶段：sample_toric_splits → validate_toric_dataset（Algorithm 1 第 1–2 行）
+    ├── 训练阶段：run_rbm_training → checkpoint
+    ├── 解码阶段：RBMGibbsDecoder.decode（Algorithm 1 第 3–8 行）
     ├── benchmark 循环：mwpm_reference_recoveries（精确 MWPM，超限时 PyMatching）→ build_toric_benchmark_report
     └── 结果表、Fig. 3/4 风格图、异常与局限说明
 ```
@@ -76,11 +76,11 @@ paper/srcs/torlai_melko_2017.ipynb（程序入口与最上层逻辑；每个 L �
 
 | 论文复现所需内容 | 目标位置或处理 |
 |---|---|
-| 程序入口、最上层逻辑与展示 | `paper/srcs/torlai_melko_2017.ipynb`；阶段顺序与数据生成/训练/Gibbs 解码/benchmark 循环，调用下列库函数 |
+| 程序入口、最上层逻辑与展示 | `paper/srcs/torlai_melko_2017.ipynb`；阶段顺序、逐测试样本记录和结果展示，调用下列库函数 |
 | run 记录 | `ai_qec/utils/run_record.py` |
 | Toric code | `ai_qec/qec/codes/toric_code.py`，已接入 code registry |
 | 数据 schema、生成与加载 | `ai_qec/data/datasets/toric_dataset.py`、`data/generators/toric_generator.py` |
-| RBM 模型与 Gibbs 解码 | `ai_qec/models/decoders/generative/` 提供模型与单步采样；`training/trainers/rbm.py` 提供 CD-k 单步更新和脚本入口复用的训练器，论文 Notebook 展开自己的上层循环 |
+| RBM 模型与 Gibbs 解码 | `ai_qec/models/decoders/generative/` 提供模型与完整 Gibbs 解码；`training/trainers/rbm.py` 提供供脚本与 Notebook 共用的 PyTorch minibatch 训练器 |
 | MWPM | `ai_qec/models/decoders/classical/mwpm.py` 的精确实现有 defect 上限；`ai_qec/benchmarks/decoding/toric.py` 的 `mwpm_reference_recoveries` 对超过上限的 syndrome 改用 PyMatching（同为最小权重完美匹配），报告记录 `pymatching_fallback_shots` |
 | 复用已训练模型重新解码 | `ai_qec/utils/source_run.py`：按源 run 配置校验并引用其数据集，核对 `best.pt` 记录的哈希与训练数据集，并在共同步数预算内逐条核对解码结果；Notebook 通过 `REUSE_CHECKPOINT_FROM_RUN` 跳过训练 |
 | 逻辑失败率与论文 benchmark | `ai_qec/benchmarks/decoding/toric.py` |

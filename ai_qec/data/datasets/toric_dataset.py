@@ -138,7 +138,7 @@ class ToricDataset:
     @property
     def visible(self) -> np.ndarray:
         """Return the paper's RBM visible vector ``[error | syndrome]``."""
-        return np.concatenate((self.physical_error, self.syndrome), axis=1).astype(np.float64)
+        return np.concatenate((self.physical_error, self.syndrome), axis=1).astype(np.float32)
 
 
 def validate_toric_dataset(dataset_dir: str | Path, config: dict[str, Any]) -> dict[str, Any]:

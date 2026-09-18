@@ -36,7 +36,11 @@ class JointErrorSyndromeRBM(nn.Module):
         return values
 
     def hidden_probabilities(self, visible: np.ndarray | torch.Tensor) -> torch.Tensor:
-        return torch.sigmoid(self._visible(visible) @ self.weights + self.hidden_bias)
+        return self._hidden_probabilities_tensor(self._visible(visible))
+
+    def _hidden_probabilities_tensor(self, visible: torch.Tensor) -> torch.Tensor:
+        """Apply the hidden layer to an already validated visible tensor."""
+        return torch.sigmoid(visible @ self.weights + self.hidden_bias)
 
     def visible_probabilities(self, hidden: torch.Tensor) -> torch.Tensor:
         if hidden.ndim != 2 or hidden.shape[1] != self.hidden_units:
@@ -90,15 +94,15 @@ class JointErrorSyndromeRBM(nn.Module):
         if len(positive) == 0:
             raise ValueError("cannot train on an empty minibatch")
         with torch.no_grad():
-            positive_hidden = self.hidden_probabilities(positive)
+            positive_hidden = self._hidden_probabilities_tensor(positive)
             hidden = self._draw(positive_hidden, generator)
             negative = positive
             for _ in range(cd_steps):
                 negative = self._draw(self.visible_probabilities(hidden), generator)
-                hidden = self._draw(self.hidden_probabilities(negative), generator)
+                hidden = self._draw(self._hidden_probabilities_tensor(negative), generator)
         optimizer.zero_grad(set_to_none=True)
         positive_energy = -(torch.sum((positive @ self.weights) * positive_hidden, dim=1) + positive @ self.visible_bias + positive_hidden @ self.hidden_bias).mean()
-        negative_hidden = self.hidden_probabilities(negative).detach()
+        negative_hidden = self._hidden_probabilities_tensor(negative).detach()
         negative_energy = -(torch.sum((negative @ self.weights) * negative_hidden, dim=1) + negative @ self.visible_bias + negative_hidden @ self.hidden_bias).mean()
         (positive_energy - negative_energy).backward()
         optimizer.step()

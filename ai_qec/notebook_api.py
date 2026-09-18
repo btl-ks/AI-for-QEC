@@ -15,6 +15,7 @@ from ai_qec.benchmarks.decoding.toric import (
     write_benchmark_outputs,
 )
 from ai_qec.data.datasets.dataset_resolution import resolve_dataset
+from ai_qec.data.generators.toric_generator import sample_toric_splits
 from ai_qec.data.datasets.toric_dataset import (
     SPLIT_SEED_OFFSETS,
     build_toric_dataset_manifest,
@@ -25,7 +26,7 @@ from ai_qec.data.datasets.toric_dataset import (
     write_toric_split,
 )
 from ai_qec.models.decoders.classical.mwpm import ExactToricMWPMDecoder
-from ai_qec.models.decoders.generative.rbm_decoder import first_compatible_chain, torch_generator_from
+from ai_qec.models.decoders.generative.rbm_decoder import RBMGibbsDecoder, first_compatible_chain, torch_generator_from
 from ai_qec.models.registry import build_model, load_model
 from ai_qec.qec.circuits.registry import build_circuit
 from ai_qec.qec.codes.registry import build_code
@@ -34,10 +35,12 @@ from ai_qec.qec.noise.registry import build_noise_model
 from ai_qec.training.evaluation.toric_rbm import DecodingRecord, decoding_rng, rbm_decoding_metrics, save_toric_predictions
 from ai_qec.training.trainers.rbm import (
     BEST_CHECKPOINT_SELECTION,
+    RBMTrainingResult,
     finish_training,
     rbm_checkpoint_metadata,
     rbm_training_summary,
     reuse_training_outputs,
+    run_rbm_training,
     save_rbm_checkpoint,
 )
 from ai_qec.utils.config import (
@@ -77,6 +80,8 @@ __all__ = [
     "ExactToricMWPMDecoder",
     "ExperimentSetup",
     "MaximumLikelihoodTieRule",
+    "RBMGibbsDecoder",
+    "RBMTrainingResult",
     "RunRecord",
     "SourceRun",
     "StabilizerCode",
@@ -122,6 +127,8 @@ __all__ = [
     "resolve_notebook_config",
     "resolve_project_path",
     "reuse_training_outputs",
+    "run_rbm_training",
+    "sample_toric_splits",
     "save_rbm_checkpoint",
     "save_toric_predictions",
     "source_training_summary",

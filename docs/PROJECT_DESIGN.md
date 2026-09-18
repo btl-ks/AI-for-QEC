@@ -14,7 +14,7 @@
 | 一次执行的结果 | `runs/<run_id>/` | 配置快照、日志、checkpoint、预测、指标和报告 |
 | 论文材料、入口与总结 | `paper/docs/`、`paper/srcs/`、`paper/summary/` | PDF、每篇论文一个 Notebook 及复现总结；Notebook 承担上层控制流，不实现领域算法 |
 
-`scripts/` 是通用配置和批量实验的命令入口与流程编排层。论文 Notebook 是对应复现实验的另一程序入口。两类入口都可以组织阶段与循环；QEC 物理、数据 schema、模型单步操作、checkpoint 身份和 benchmark 指标定义必须位于 `ai_qec/`。`tests/` 只验证代码，不保存实验数据或结果。
+`scripts/` 是通用配置和批量实验的命令入口与流程编排层。论文 Notebook 是对应复现实验的另一程序入口。两类入口组织阶段；共享的数据生成、训练与解码循环，以及 QEC 物理、数据 schema、checkpoint 身份和 benchmark 指标定义位于 `ai_qec/`。`tests/` 只验证代码，不保存实验数据或结果。
 
 ### 工作区的 Git 与写入边界
 
@@ -193,7 +193,7 @@ paper/templates/                     # 最小复现包模板
 paper/releases/                      # 本地不可变导出包；Git 忽略
 ```
 
-`paper/docs/` 只保存论文 PDF 与补充材料；`paper/summary/` 保存复现总结及其静态图表、结果索引；`paper/releases/` 只由显式 allowlist 导出器创建。论文 Notebook 是对应复现实验的程序入口，只承载最上层逻辑：阶段顺序，以及 split、epoch、minibatch、采样步和测试样本这一层的循环，并展示结果。这一层以下的实现都是 `ai_qec/` 库函数：code 与噪声模型、模型结构及单步采样/CD-k 更新、兼容性检查、基线解码器（如 MWPM）、数据集写入/manifest 构建/校验、指标与报告构建，以及 run 记录（`utils/run_record.py`）。Notebook 不在单元格中重新实现这些细节；`scripts/run_experiment.py` 保留为通用配置的脚本入口。两类入口复用相同的配置校验、领域函数、数据/checkpoint 契约和指标定义，允许各自组织上层控制流。Notebook 必须能从清空的 kernel 顺序执行，并验证非空数据、产物身份和 run 终态。论文特有的实现归属和引用见 [PAPER_REPRODUCTION_DESIGN.md](PAPER_REPRODUCTION_DESIGN.md)。
+`paper/docs/` 只保存论文 PDF 与补充材料；`paper/summary/` 保存复现总结及其静态图表、结果索引；`paper/releases/` 只由显式 allowlist 导出器创建。论文 Notebook 是对应复现实验的程序入口，负责配置、阶段顺序、逐测试样本记录和结果展示。数据生成、epoch/minibatch 训练和 Gibbs 解码由 `ai_qec/` 的共享实现负责；该库还负责 code 与噪声模型、checkpoint、数据集写入/校验、指标与报告，以及 run 记录（`utils/run_record.py`）。`scripts/run_experiment.py` 保留为通用配置的脚本入口。两类入口复用相同的配置校验、领域函数、数据/checkpoint 契约和指标定义。Notebook 必须能从清空的 kernel 顺序执行，并验证非空数据、产物身份和 run 终态。论文特有的实现归属和引用见 [PAPER_REPRODUCTION_DESIGN.md](PAPER_REPRODUCTION_DESIGN.md)。
 
 ## 6. 架构与规划一致性核对（2026-09-15）
 

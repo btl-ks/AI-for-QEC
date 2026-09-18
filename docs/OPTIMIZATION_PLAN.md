@@ -212,6 +212,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 
 - [x] **P4.0 工作区归位与论文 smoke 纵切面**：将可复用实现归位到 `ai_qec/`，数据写入 `datasets/`，论文资料与调用型 Notebook 放入 `paper/`；接入 Torlai–Melko toric code-capacity RBM 单链和独立并行链 smoke，以及小规模精确 MWPM 对照；记录当前架构、技术栈、论文路径和一致性核对。本项只验收这些 smoke 路径，不表示 P1–P3 或 Phase 4 已退出。
 - [x] **P4.11 文档去重**：将工作区 Git/写入/产物放置规则归入 `PROJECT_DESIGN.md`，将文档索引归入根 `README.md`；修正所有引用，并标识优化计划的历史基线及论文 smoke 与 P4.0 的关系。保留研究主题、技术栈、任务计划和论文复现设计的独立职责。
+- [x] **P4.12 RBM 数据与训练路径收拢**：Notebook 与脚本共用 Toric split 生成器和 RBM 训练器；训练通过 PyTorch `DataLoader` 组织小批次，一次构造 float32 输入、减少逐批设备同步，并按样本数汇总不等长 batch 指标；Notebook 调用共享 Gibbs 解码器。验证独立 split 随机流、训练确定性、非整除 batch，以及 CPU/CUDA Notebook smoke。本项不改变 run 生命周期与产物格式。
 - [ ] **P4.1** 提供安装后的统一 `ai-qec` CLI（run/generate/train/evaluate/benchmark/export 子命令），以 `pip install -e '.[dev,sim]'`（P1/P2）或 `pip install -e '.[dev,sim,torch]'`（P3）替代 scripts 中的 `sys.path` 注入；package data 中不得引用 wheel 外的默认配置，各 extra 的支持矩阵必须测试。
 - [ ] **P4.2** ruff + pytest + typing + coverage；测试按 `unit/`、`integration/`、`regression/`、`smoke/` 分层，并设置最低覆盖门槛。smoke 必须经过正式 runner，而非手工串联子脚本。
 - [ ] **P4.3** 回归测试：固定 seed 小数据集的 golden metrics，按容差比较；golden fixture 使用明确 allowlist，不得因全局 `*.npz` ignore 而静默缺失。

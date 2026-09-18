@@ -3,20 +3,29 @@
 from __future__ import annotations
 
 import datetime as dt
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 import time
 
-import numpy as np
 import torch
+from torch.utils.data import DataLoader, TensorDataset
 
 from ai_qec.data.datasets.toric_dataset import load_toric_split, validate_toric_dataset
 from ai_qec.models.registry import build_model
-from ai_qec.utils.config import write_json, data_output_dir, first_seed, write_json
+from ai_qec.utils.config import write_json, data_output_dir, first_seed
 from ai_qec.utils.reproducibility import code_version
 
 
 BEST_CHECKPOINT_SELECTION = "lowest validation one-step reconstruction BCE"
+
+
+@dataclass(frozen=True)
+class RBMTrainingResult:
+    """Training summary and files produced by the shared RBM training path."""
+
+    summary: dict[str, Any]
+    artifacts: tuple[Path, ...]
 
 
 def rbm_checkpoint_metadata(
@@ -67,8 +76,8 @@ def rbm_training_summary(
     }
 
 
-def train_rbm(config: dict[str, Any], project_root: str | Path, run_dir: str | Path) -> dict[str, float]:
-    """Train a joint error--syndrome RBM with minibatch CD-k updates."""
+def run_rbm_training(config: dict[str, Any], project_root: str | Path, run_dir: str | Path) -> RBMTrainingResult:
+    """Train from validated splits with one conversion and PyTorch minibatching."""
     root = Path(project_root)
     run_path = Path(run_dir)
     dataset_dir = data_output_dir(config, root)
@@ -83,14 +92,18 @@ def train_rbm(config: dict[str, Any], project_root: str | Path, run_dir: str | P
         syndrome_units=train.syndrome.shape[1],
     )
     model = model.to(device)
-    rng = np.random.default_rng(first_seed(config) + 41)
-    torch_rng = torch.Generator(device=device).manual_seed(first_seed(config) + 41)
-    visible = train.visible
-    validation_visible = validation.visible
     epochs = int(training_cfg["epochs"])
     batch_size = int(training_cfg["batch_size"])
     cd_steps = int(training_cfg["cd_steps"])
     optimizer = torch.optim.SGD(model.parameters(), lr=float(training_cfg["learning_rate"]), weight_decay=float(training_cfg["weight_decay"]))
+    train_visible = torch.as_tensor(train.visible, dtype=model.weights.dtype)
+    validation_visible = model.to_visible_tensor(validation.visible)
+    loader = DataLoader(
+        TensorDataset(train_visible), batch_size=batch_size, shuffle=True,
+        generator=torch.Generator().manual_seed(first_seed(config) + 41),
+        pin_memory=device == "cuda",
+    )
+    cd_rng = torch.Generator(device=device).manual_seed(first_seed(config) + 41)
     history: list[dict[str, float]] = []
     best_validation = float("inf")
     best_epoch: int | None = None
@@ -98,35 +111,39 @@ def train_rbm(config: dict[str, Any], project_root: str | Path, run_dir: str | P
     training_started = time.perf_counter()
 
     for epoch in range(1, epochs + 1):
-        order = rng.permutation(len(visible))
-        batch_losses = [
-            model.contrastive_divergence_step(visible[order[start : start + batch_size]], optimizer=optimizer, cd_steps=cd_steps, generator=torch_rng)
-            for start in range(0, len(order), batch_size)
-        ]
+        loss_sum = torch.zeros((), dtype=model.weights.dtype, device=device)
+        for (batch,) in loader:
+            visible_batch = batch.to(device, non_blocking=device == "cuda")
+            loss = model.contrastive_divergence_step(
+                visible_batch, optimizer=optimizer, cd_steps=cd_steps,
+                generator=cd_rng, validated=True, sync=False,
+            )
+            loss_sum += loss * len(batch)
         epoch_metrics = {
             "epoch": float(epoch),
-            "train_reconstruction_bce": float(np.mean(batch_losses)),
+            "train_reconstruction_bce": float((loss_sum / len(train_visible)).item()),
             "validation_reconstruction_bce": model.reconstruction_bce(validation_visible),
         }
         history.append(epoch_metrics)
         if epoch_metrics["validation_reconstruction_bce"] < best_validation:
             best_validation, best_epoch = epoch_metrics["validation_reconstruction_bce"], epoch
-            model.save(
-                checkpoint_dir / "best.pt",
-                optimizer=optimizer,
-                metadata=rbm_checkpoint_metadata(config, manifest, root, metrics=epoch_metrics, selection=BEST_CHECKPOINT_SELECTION),
+            save_rbm_checkpoint(
+                checkpoint_dir / "best.pt", model, optimizer, config=config,
+                dataset_manifest=manifest, project_root=root, metrics=epoch_metrics,
+                selection=BEST_CHECKPOINT_SELECTION,
             )
 
-    model.save(
-        checkpoint_dir / "last.pt",
-        optimizer=optimizer,
-        metadata=rbm_checkpoint_metadata(config, manifest, root, metrics=history[-1], selection="final epoch"),
+    summary, outputs = finish_training(
+        run_path, model, optimizer, config=config, dataset_manifest=manifest,
+        project_root=root, history=history, best_epoch=best_epoch,
+        training_time_seconds=time.perf_counter() - training_started, dataset_dir=dataset_dir,
     )
-    summary = rbm_training_summary(
-        history, selected_epoch=best_epoch, training_time_seconds=time.perf_counter() - training_started, dataset_dir=dataset_dir,
-    )
-    write_json(run_path / "training_summary.json", summary)
-    return summary["metrics"]
+    return RBMTrainingResult(summary, (checkpoint_dir / "best.pt", *outputs))
+
+
+def train_rbm(config: dict[str, Any], project_root: str | Path, run_dir: str | Path) -> dict[str, float]:
+    """CLI-compatible entry point for the shared RBM training path."""
+    return run_rbm_training(config, project_root, run_dir).summary["metrics"]
 
 
 def save_rbm_checkpoint(

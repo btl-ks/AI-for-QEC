@@ -1,29 +1,24 @@
 """Decide which dataset a run uses, and record that decision on the run.
 
 A run reaches its data in one of three ways: it references a source run's dataset,
-it reuses an immutable dataset already on disk, or it generates one.  All three end
-at the same verifier, and all three have to leave the same trace in the run manifest.
-Entry points keep the sampling loop -- the part that mirrors the paper -- and hand it
-here as ``sample_splits`` so the branching does not have to be written out again.
+it reuses an immutable dataset already on disk, or it generates one. All three end
+at the same verifier and leave the same trace in the run manifest. New data uses
+the same split sampler as the script entry point.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from ai_qec.data.datasets.toric_dataset import (
     build_toric_dataset_manifest,
     staged_dataset_dir,
     validate_toric_dataset,
 )
-from ai_qec.qec.circuits.registry import build_circuit
-from ai_qec.qec.codes.registry import build_code
+from ai_qec.data.generators.toric_generator import sample_toric_splits
 from ai_qec.utils.config import data_output_dir, write_json
 from ai_qec.utils.source_run import SourceRun, link_source_dataset, validate_source_dataset
-
-
-SampleSplits = Callable[[Path], dict[str, dict[str, Any]]]
 
 
 class _Run(Protocol):
@@ -38,15 +33,12 @@ def resolve_dataset(
     project_root: str | Path,
     *,
     step: dict[str, Any],
-    sample_splits: SampleSplits,
     source_run: SourceRun | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     """Return the validated dataset directory and manifest for this run.
 
-    ``sample_splits`` is called only when a new dataset has to be generated.  It
-    receives the staging directory and returns the manifest file records, one per
-    split, exactly as :func:`write_toric_split` produces them.  Whatever it writes is
-    committed atomically and then verified, so a failed generation leaves nothing.
+    New data uses the same sampler as the script entry point.  The staged directory
+    is committed atomically and verified, so failed generation leaves no dataset.
     """
     dataset_dir = data_output_dir(config, project_root)
     if source_run is not None:
@@ -57,16 +49,15 @@ def resolve_dataset(
         if dataset_dir.exists():
             step["reused_immutable"] = True
         else:
-            code = build_code(config)
             with staged_dataset_dir(dataset_dir) as staging:
-                files = sample_splits(staging)
+                files, code, circuit = sample_toric_splits(config, staging)
                 if not files:
-                    raise ValueError("sample_splits produced no dataset splits")
+                    raise ValueError("sampler produced no dataset splits")
                 write_json(
                     staging / "dataset_manifest.json",
                     build_toric_dataset_manifest(
                         config, code, files,
-                        extra_context={"circuit": build_circuit(config, code).context()},
+                        extra_context={"circuit": circuit.context()},
                     ),
                 )
         manifest = validate_toric_dataset(dataset_dir, config)
