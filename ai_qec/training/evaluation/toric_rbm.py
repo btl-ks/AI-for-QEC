@@ -39,6 +39,58 @@ def rbm_decoding_metrics(
     }
 
 
+class DecodingRecord:
+    """Collect per-shot decoding outcomes for one split, then emit metrics and predictions.
+
+    Every shot starts marked as a logical failure, so a timeout counts as one without
+    the caller having to remember: only a recovery that is found and checked can clear
+    the flag.  Callers keep their own per-shot loop and report each outcome here.
+    """
+
+    def __init__(self, n_samples: int, num_data_qubits: int) -> None:
+        if n_samples < 1 or num_data_qubits < 1:
+            raise ValueError("n_samples and num_data_qubits must be positive")
+        self.recovery = np.zeros((n_samples, num_data_qubits), dtype=np.uint8)
+        self.recovery_valid = np.zeros(n_samples, dtype=np.uint8)
+        self.timed_out = np.zeros(n_samples, dtype=np.uint8)
+        self.gibbs_steps = np.zeros(n_samples, dtype=np.int32)
+        self.decoder_latency_ms = np.zeros(n_samples, dtype=np.float64)
+        self.logical_failure = np.ones(n_samples, dtype=np.uint8)
+
+    def add(
+        self, index: int, *, recovery: np.ndarray | None, steps: int, latency_ms: float,
+        failed: bool | None = None,
+    ) -> None:
+        """Record one shot; ``recovery=None`` is a timeout and stays a logical failure."""
+        self.gibbs_steps[index] = steps
+        self.decoder_latency_ms[index] = latency_ms
+        if recovery is None:
+            self.timed_out[index] = 1
+            return
+        if failed is None:
+            raise ValueError("a decoded shot needs its logical-failure outcome")
+        self.recovery[index] = recovery
+        self.recovery_valid[index] = 1
+        self.logical_failure[index] = np.uint8(failed)
+
+    def metrics(self, split: str) -> dict[str, float]:
+        """Return the headline decoding metrics for this split."""
+        return rbm_decoding_metrics(
+            split, logical_failure=self.logical_failure, timed_out=self.timed_out,
+            recovery_valid=self.recovery_valid, gibbs_steps=self.gibbs_steps,
+            decoder_latency_ms=self.decoder_latency_ms,
+        )
+
+    def save(self, path: str | Path, *, dataset: ToricDataset, parallel_chains: int, device: str) -> None:
+        """Persist the per-shot predictions in the schema the benchmark reads."""
+        save_toric_predictions(
+            path, dataset=dataset, parallel_chains=parallel_chains, device=device,
+            recovery=self.recovery, recovery_valid=self.recovery_valid, timed_out=self.timed_out,
+            gibbs_steps=self.gibbs_steps, decoder_latency_ms=self.decoder_latency_ms,
+            logical_failure=self.logical_failure,
+        )
+
+
 def save_toric_predictions(
     path: str | Path, *, dataset: ToricDataset, parallel_chains: int, device: str, recovery: np.ndarray,
     recovery_valid: np.ndarray, timed_out: np.ndarray, gibbs_steps: np.ndarray, decoder_latency_ms: np.ndarray,

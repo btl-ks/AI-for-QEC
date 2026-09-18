@@ -25,6 +25,8 @@ from ai_qec.models.decoders.classical.mwpm import ExactToricMWPMDecoder  # noqa:
 from ai_qec.models.decoders.protocol import DecodeRequest  # noqa: E402
 from ai_qec.qec.codes.toric_code import ToricCode  # noqa: E402
 from ai_qec.utils.config import config_hash, load_config  # noqa: E402
+from ai_qec.qec.codes.registry import build_code  # noqa: E402
+from ai_qec.qec.noise.registry import build_noise_model  # noqa: E402
 from ai_qec.utils.run_record import start_notebook_run  # noqa: E402
 
 
@@ -137,7 +139,7 @@ class ToricRBMContractTest(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 return qec.start_notebook_run(
                     run_config, experiment, project_root=PROJECT_ROOT, notebook="paper/srcs/torlai_melko_2017.ipynb",
-                    prepared_experiment_hash=qec.config_hash(experiment),
+                    code=qec.build_code(experiment), noise=qec.build_noise_model(experiment),
                 )[0]
 
         def decode(record, checkpoint: Path, test) -> dict:
@@ -270,18 +272,20 @@ class ToricRBMContractTest(unittest.TestCase):
             run_keys = {"schema_version", "execution", "experiment", "topic", "reproducibility", "outputs"}
             run_config = {key: value for key, value in raw.items() if key in run_keys}
             experiment_config = {key: value for key, value in raw.items() if key not in run_keys}
+            code = build_code(experiment_config)
+            noise = build_noise_model(experiment_config)
+            stale = build_code({"qec": {**experiment_config["qec"], "distance": experiment_config["qec"]["distance"] + 2}})
             with self.assertRaisesRegex(RuntimeError, "实验参数已更改"):
                 start_notebook_run(
                     run_config, experiment_config, project_root=PROJECT_ROOT,
-                    notebook="paper/srcs/torlai_melko_2017.ipynb", prepared_experiment_hash="stale",
+                    notebook="paper/srcs/torlai_melko_2017.ipynb", code=stale, noise=noise,
                 )
             self.assertFalse((tmp / "runs").exists())
             output = io.StringIO()
             with redirect_stdout(output):
                 record, device, seed = start_notebook_run(
                     run_config, experiment_config, project_root=PROJECT_ROOT,
-                    notebook="paper/srcs/torlai_melko_2017.ipynb",
-                    prepared_experiment_hash=config_hash(experiment_config),
+                    notebook="paper/srcs/torlai_melko_2017.ipynb", code=code, noise=noise,
                 )
             config = record.config
             self.assertEqual((device, seed), ("cpu", 17))

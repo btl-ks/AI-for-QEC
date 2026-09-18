@@ -5,13 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, Mapping
 
 from ai_qec.qec.codes.base import QECCode
 from ai_qec.qec.codes.registry import build_code
 from ai_qec.qec.noise.base import NoiseModel
 from ai_qec.qec.noise.registry import build_noise_model
-from ai_qec.utils.config import first_seed
+from ai_qec.utils.config import first_seed, require_experiment_kind
 
 
 @dataclass(frozen=True)
@@ -62,3 +62,18 @@ def prepare_experiment(config: dict[str, Any]) -> ExperimentSetup:
         noise=build_noise_model(config),
     )
 
+
+
+def build_experiment(
+    experiment_config: Mapping[str, Any], *, generator: str, model: str,
+) -> tuple[QECCode, NoiseModel]:
+    """Check the workflow this config selects, then build the objects it describes.
+
+    The code and the noise model are the only objects an entry point derives from the
+    experiment parameters alone, so they are built together and handed back as a pair.
+    Unlike :func:`prepare_experiment` this takes the experiment parameters on their own,
+    before they are merged with a run's reproducibility and execution settings.
+    """
+    config = dict(experiment_config)
+    require_experiment_kind(config, generator=generator, model=model)
+    return build_code(config), build_noise_model(config)

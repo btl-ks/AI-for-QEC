@@ -13,6 +13,7 @@ import numpy as np
 import yaml
 
 from ai_qec.data.datasets.toric_dataset import validate_toric_dataset
+from ai_qec.utils.config import write_json
 
 # Training settings a reusing run may change: they only affect decoding.
 DECODE_ONLY_TRAINING_KEYS = ("decoder", "device")
@@ -165,4 +166,24 @@ def compare_with_source_predictions(
         source_valid=int(old_valid.sum()),
         valid=int(new_valid.sum()),
     )
+    return report
+
+
+def verify_source_consistency(
+    source: SourceRun, run_dir: str | Path, *, step: dict[str, Any], config: dict[str, Any],
+    syndromes: np.ndarray, recovery_valid: np.ndarray, gibbs_steps: np.ndarray, recovery: np.ndarray,
+) -> dict[str, Any]:
+    """Compare decoding with the source run and fail the stage if it diverged.
+
+    Same checkpoint and same per-shot RNG means the shared step budget must reproduce
+    exactly, so any difference is a defect rather than sampling noise.
+    """
+    report = compare_with_source_predictions(
+        source, config=config, syndromes=syndromes, recovery_valid=recovery_valid,
+        gibbs_steps=gibbs_steps, recovery=recovery)
+    path = Path(run_dir) / "source_consistency.json"
+    write_json(path, report)
+    step["outputs"].append(path)
+    if report["checked"] and not report["identical"]:
+        raise RuntimeError(f"decoding differs from the source run within the shared step budget: {report}")
     return report

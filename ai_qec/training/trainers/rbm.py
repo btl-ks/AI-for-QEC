@@ -12,7 +12,7 @@ import torch
 
 from ai_qec.data.datasets.toric_dataset import load_toric_split, validate_toric_dataset
 from ai_qec.models.registry import build_model
-from ai_qec.utils.config import data_output_dir, first_seed, write_json
+from ai_qec.utils.config import write_json, data_output_dir, first_seed, write_json
 from ai_qec.utils.reproducibility import code_version
 
 
@@ -127,3 +127,49 @@ def train_rbm(config: dict[str, Any], project_root: str | Path, run_dir: str | P
     )
     write_json(run_path / "training_summary.json", summary)
     return summary["metrics"]
+
+
+def save_rbm_checkpoint(
+    path: str | Path, model: Any, optimizer: Any, *, config: dict[str, Any],
+    dataset_manifest: dict[str, Any], project_root: str | Path, metrics: dict[str, Any], selection: str,
+) -> Path:
+    """Save one checkpoint together with the identity metadata that evaluation re-checks."""
+    model.save(path, optimizer=optimizer, metadata=rbm_checkpoint_metadata(
+        config, dataset_manifest, project_root, metrics=metrics, selection=selection))
+    return Path(path)
+
+
+def finish_training(
+    run_dir: str | Path, model: Any, optimizer: Any, *, config: dict[str, Any],
+    dataset_manifest: dict[str, Any], project_root: str | Path, history: list[dict[str, Any]],
+    best_epoch: int, training_time_seconds: float, dataset_dir: str | Path,
+) -> tuple[dict[str, Any], list[Path]]:
+    """Write ``last.pt`` and the training summary, and return them for the stage record."""
+    last = save_rbm_checkpoint(
+        Path(run_dir) / "checkpoints" / "last.pt", model, optimizer, config=config,
+        dataset_manifest=dataset_manifest, project_root=project_root,
+        metrics=history[-1], selection="final epoch")
+    summary = rbm_training_summary(
+        history, selected_epoch=best_epoch, training_time_seconds=training_time_seconds,
+        dataset_dir=dataset_dir)
+    summary_path = Path(run_dir) / "training_summary.json"
+    write_json(summary_path, summary)
+    return summary, [last, summary_path]
+
+
+def reuse_training_outputs(
+    source_run: Any, *, run_dir: str | Path, config: dict[str, Any], dataset_manifest: dict[str, Any],
+) -> tuple[dict[str, Any], list[Path]]:
+    """Copy a source run's ``best.pt`` and training summary into this run.
+
+    The checkpoint's recorded hash and its training dataset are both re-checked before
+    the copy, so a reusing run cannot silently decode with a mismatched model.
+    """
+    from ai_qec.utils.source_run import copy_source_checkpoint, source_training_summary
+
+    best = Path(run_dir) / "checkpoints" / "best.pt"
+    copy_source_checkpoint(source_run, best, config=config, dataset_manifest=dataset_manifest)
+    summary = source_training_summary(source_run)
+    summary_path = Path(run_dir) / "training_summary.json"
+    write_json(summary_path, summary)
+    return summary, [best, summary_path]

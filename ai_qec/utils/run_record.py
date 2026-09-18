@@ -15,6 +15,8 @@ import uuid
 
 import yaml
 
+from ai_qec.qec.codes.registry import build_code
+from ai_qec.qec.noise.registry import build_noise_model
 from ai_qec.utils.config import config_hash, resolve_notebook_config, write_json
 from ai_qec.utils.experiment_setup import prepare_run_environment
 from ai_qec.utils.reproducibility import (
@@ -160,10 +162,18 @@ def start_notebook_run(
     *,
     project_root: str | Path,
     notebook: str,
-    prepared_experiment_hash: str,
+    code: Any,
+    noise: Any,
 ) -> tuple[RunRecord, str, int]:
-    """Check and show the full effective config before creating a notebook run."""
-    if config_hash(dict(experiment_config)) != prepared_experiment_hash:
+    """Check and show the full effective config before creating a notebook run.
+
+    ``code`` and ``noise`` are the objects the caller built from these same experiment
+    parameters.  They are rebuilt here and compared, which catches the notebook failure
+    mode of editing the configuration cell and then running only this one; every other
+    value is read from the merged config below, so nothing else can go stale.
+    """
+    parameters = dict(experiment_config)
+    if build_code(parameters) != code or build_noise_model(parameters) != noise:
         raise RuntimeError("实验参数已更改；请重新运行实验配置单元格以重建 code 和 noise")
 
     config = resolve_notebook_config(run_config, experiment_config, project_root=project_root)
