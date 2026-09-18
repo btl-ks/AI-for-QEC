@@ -24,9 +24,14 @@ from ai_qec.models.decoders.classical.mwpm import ExactToricMWPMDecoder
 from ai_qec.models.decoders.generative.rbm_decoder import first_compatible_chain, torch_generator_from
 from ai_qec.models.registry import build_model, load_model
 from ai_qec.qec.codes.registry import build_code
+from ai_qec.qec.codes.stabilizer import StabilizerCode, gf2_matvec
 from ai_qec.qec.noise.registry import build_noise_model
 from ai_qec.training.evaluation.toric_rbm import decoding_rng, rbm_decoding_metrics, save_toric_predictions
-from ai_qec.training.trainers.rbm import BEST_CHECKPOINT_SELECTION, rbm_checkpoint_metadata, rbm_training_summary
+from ai_qec.training.trainers.rbm import (
+    BEST_CHECKPOINT_SELECTION,
+    rbm_checkpoint_metadata,
+    rbm_training_summary,
+)
 from ai_qec.utils.config import (
     config_hash,
     data_output_dir,
@@ -63,6 +68,7 @@ __all__ = [
     "MaximumLikelihoodTieRule",
     "RunRecord",
     "SourceRun",
+    "StabilizerCode",
     "SPLIT_SEED_OFFSETS",
     "build_code",
     "build_model",
@@ -77,6 +83,7 @@ __all__ = [
     "decoding_rng",
     "exact_posterior_reference",
     "first_compatible_chain",
+    "gf2_matvec",
     "find_project_root",
     "first_seed",
     "link_source_dataset",

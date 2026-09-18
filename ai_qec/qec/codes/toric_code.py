@@ -6,20 +6,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ai_qec.qec.codes.base import QECCode
-
-
-def _binary_edges(value: np.ndarray, width: int, label: str) -> np.ndarray:
-    array = np.asarray(value, dtype=np.uint8)
-    if array.ndim < 1 or array.shape[-1] != width:
-        raise ValueError(f"{label} must end with dimension {width}, got {array.shape}")
-    if not np.isin(array, (0, 1)).all():
-        raise ValueError(f"{label} must be binary")
-    return array
+from ai_qec.qec.codes.stabilizer import StabilizerCode, binary_vectors as _binary_edges
 
 
 @dataclass(frozen=True)
-class ToricCode(QECCode):
+class ToricCode(StabilizerCode):
     """Toric code with qubits on the links of an ``L x L`` periodic lattice.
 
     Horizontal edges are stored before vertical edges.  ``horizontal[y, x]``
@@ -74,8 +65,32 @@ class ToricCode(QECCode):
         """Return ``H`` with ``H @ error % 2 == syndrome(error)``; column ``j`` is the syndrome of edge ``j``."""
         return self.syndrome(np.eye(self.num_data_qubits, dtype=np.uint8)).T.copy()
 
+    def logical_readout_matrix(self) -> np.ndarray:
+        """Return the two dual cuts a cycle's winding parities count crossings of.
+
+        Row 0 is the column of horizontal edges at ``x = L-1``, row 1 the row of
+        vertical edges at ``y = L-1``.  A cycle crosses each cut an even number of
+        times exactly when it does not wind that way, so these rows read the same
+        two parities as :meth:`homology` while fitting the generic GF(2) form.
+        """
+        size = self.distance
+        horizontal = np.zeros((size, size), dtype=np.uint8)
+        vertical = np.zeros((size, size), dtype=np.uint8)
+        horizontal[:, -1] = 1
+        vertical[-1, :] = 1
+        blank = np.zeros(size * size, dtype=np.uint8)
+        return np.stack((
+            np.concatenate((horizontal.ravel(), blank)),
+            np.concatenate((blank, vertical.ravel())),
+        ))
+
     def homology(self, cycle: np.ndarray, *, require_closed: bool = True) -> np.ndarray:
-        """Return the two winding parities of a closed error/recovery cycle."""
+        """Return the two winding parities of a closed error/recovery cycle.
+
+        This is :meth:`StabilizerCode.logical_class` under the toric code's own
+        name, computed by reducing the cut edges directly instead of multiplying
+        by the readout matrix; the unit tests pin the two to agree.
+        """
         cycle = _binary_edges(cycle, self.num_data_qubits, "cycle")
         if require_closed and np.any(self.syndrome(cycle)):
             raise ValueError("Homology requires a closed cycle")
@@ -84,12 +99,24 @@ class ToricCode(QECCode):
         winding_y = np.bitwise_xor.reduce(vertical[..., -1, :], axis=-1)
         return np.stack((winding_x, winding_y), axis=-1).astype(np.uint8)
 
-    def logical_failure(self, error: np.ndarray, recovery: np.ndarray) -> np.ndarray:
-        """Return whether a syndrome-compatible recovery has nontrivial homology."""
-        error = _binary_edges(error, self.num_data_qubits, "error")
-        recovery = _binary_edges(recovery, self.num_data_qubits, "recovery")
-        if error.shape != recovery.shape:
-            raise ValueError("error and recovery shapes must match")
-        if not np.array_equal(self.syndrome(error), self.syndrome(recovery)):
-            raise ValueError("Recovery syndrome does not match the physical error")
-        return np.any(self.homology(error ^ recovery), axis=-1)
+    def logical_class(self, cycle: np.ndarray, *, require_closed: bool = True) -> np.ndarray:
+        """Return the homology class; the toric lattice reduces the cuts directly."""
+        return self.homology(cycle, require_closed=require_closed)
+
+    def trivial_cycle_generators(self) -> np.ndarray:
+        """Return the plaquette chains that generate the contractible cycles.
+
+        These are the Z-type face operators, not the X-vertex checks that make up
+        ``H``: a face boundary is a closed chain, and adding one deforms a cycle
+        without changing its homology class.
+        """
+        size = self.distance
+        generators = []
+        for y in range(size):
+            for x in range(size):
+                horizontal = np.zeros((size, size), dtype=np.uint8)
+                vertical = np.zeros((size, size), dtype=np.uint8)
+                horizontal[y, x] = horizontal[(y + 1) % size, x] = 1
+                vertical[y, x] = vertical[y, (x + 1) % size] = 1
+                generators.append(np.concatenate((horizontal.ravel(), vertical.ravel())))
+        return np.stack(generators)
