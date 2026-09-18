@@ -22,3 +22,7 @@ dist/
 /paper/releases/
 *.npz
 *.pt
+
+# Rendered report builds; regenerate from the Markdown source when needed
+/paper/summary/*.html
+/paper/summary/*.pdf
