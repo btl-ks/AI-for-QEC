@@ -14,8 +14,26 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+sim = [
+  "stim>=1.15",
+  "sinter>=1.15",
+  "pymatching>=2.0",
+]
 torch = ["torch>=2.2"]
+plot = ["matplotlib>=3.8"]
+notebook = [
+  "ipykernel>=6.29",
+  "jupyterlab>=4.0",
+]
 matching = ["pymatching>=2.0"]
+
+[dependency-groups]
+dev = [
+  "coverage[toml]>=7.6",
+  "mypy>=1.11",
+  "pytest>=8.3",
+  "ruff>=0.6",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -167,12 +167,12 @@ NVIDIA 在 2026 年发布了 AI predecoder 与 PyMatching 组合的厂商研究�
 
 目标使用标准 `pyproject.toml` 声明包与依赖，使用 **uv** 管理项目环境、依赖锁、同步、运行和构建；现有 setuptools 继续充当 wheel 构建后端。[Python Packaging User Guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/)、[uv 项目与锁文件](https://docs.astral.sh/uv/concepts/projects/sync/)、[uv 命令概览](https://docs.astral.sh/uv/getting-started/features/)
 
-本次 WSL 仓库检查的现状：`pyproject.toml` 声明 `numpy`、`pyyaml` 与 `[torch]`、`[matching]` extras；`requirements.txt` 又单独列出基础依赖；没有 `uv.lock`，当前 shell 未找到 `uv`；脚本仍直接注入 `sys.path`。这些是待办状态，不表示 uv 工作流已可运行。
+当前 WSL 仓库状态：`pyproject.toml` 是依赖声明唯一来源，已声明 `[sim]`、`[torch]`、`[plot]`、`[notebook]`、`[matching]` extras 和 `dependency-groups.dev`；已提交 `uv.lock`，并已用 `uv lock --check`、全组合 dry-run 和 `uv build --wheel` 验证。脚本仍直接注入 `sys.path`，属于 P4.1 CLI 待办；现有 Conda `quantum` 环境继续保留。
 
 落地规则：
 
 1. `pyproject.toml` 是直接依赖的唯一真相源：`[sim]` 放 Stim/PyMatching/Sinter，`[torch]` 放训练运行依赖；开发工具放 `dependency-groups.dev`，Notebook 的运行依赖也要显式归组。清理或自动生成 `requirements.txt`，不能手工维护两套版本。
-2. 提交并审查 `uv.lock`。P4.10 完成后，WSL fresh environment 用 `uv sync --locked` 安装所选 extras/groups；`uv build` 生成 wheel，P4.1 验证从 wheel 安装后的 `ai-qec` CLI。锁文件解决 Python 依赖重建，dataset/run/checkpoint 的身份仍由各自 manifest 记录。
+2. 提交并审查 `uv.lock`。WSL fresh environment 用 `uv sync --locked` 安装所选 extras/groups；`uv build` 生成 wheel，P4.1 继续负责从 wheel 安装后的 `ai-qec` CLI 验证。锁文件解决 Python 依赖重建，dataset/run/checkpoint 的身份仍由各自 manifest 记录。
 3. 先固定支持矩阵（Python 版本、WSL/Linux CPU、实际要支持的 CUDA 构建）并验证 PyTorch wheel 来源；uv 不管理 GPU 驱动。已有 `execution.conda_env: quantum` 仍是独立执行方式，不能把 uv 的 `.venv` 当作该 Conda 环境；迁移前分别做 CPU/CUDA smoke。[uv 的 PyTorch 指南](https://docs.astral.sh/uv/guides/integration/pytorch/)
 4. 正式 run 与论文导出记录并校验 lock hash、解释器和关键包/设备版本，连同代码 commit、配置、seed 和 dataset identity 保持可追溯。此项与 P0.10、P4.10 对齐。
 

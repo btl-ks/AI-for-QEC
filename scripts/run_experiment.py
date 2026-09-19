@@ -59,7 +59,9 @@ def resolve_execution(config: dict[str, Any]) -> dict[str, Any]:
     if execution is None:
         return {
             "provider": "current",
-            "python": str(Path(sys.executable).resolve()),
+            # Preserve the virtualenv launcher path; resolving its symlink can
+            # escape the environment and make child steps lose dependencies.
+            "python": sys.executable,
             "command_prefix": [],
         }
 

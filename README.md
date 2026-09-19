@@ -51,13 +51,16 @@ toric code-capacity data → joint RBM → Gibbs decoder / exact MWPM → logica
 ## 依赖
 
 ```bash
-pip install -r requirements.txt
+# 安装 uv 后，在仓库根目录执行
+uv sync --extra plot --extra notebook
 
 # Torlai–Melko PyTorch RBM 路径需要额外安装
-pip install -e '.[torch]'
+uv sync --extra torch --extra plot --extra notebook
 ```
 
-运行论文 Notebook 时，请在所选 Python 内核对应的环境中执行上述 editable 安装；这样首个单元格才能从任意工作目录导入 `ai_qec` 并定位项目源码。当前命令仍是现行安装方法；目标 `pyproject.toml` + uv 工作流及完成条件见[技术栈决策](docs/TECHNOLOGY_STACK.md#8-python-包管理决策2026-09-19)和 P4.10。
+常用环境组合如下：`uv sync --extra sim` 用于 Stim/PyMatching/Sinter，`uv sync --extra torch` 用于 PyTorch，`uv sync --group dev` 用于测试与静态检查。论文 Notebook 需要 `torch`、`plot` 和 `notebook`；从已安装环境启动时可使用 `uv run --extra torch --extra plot --extra notebook jupyter lab`。
+
+`pyproject.toml` 是依赖的唯一声明来源，`uv.lock` 是解析后的版本锁定来源。正式运行和论文导出使用 `uv run --locked ...` 或 `uv sync --locked`；不要再维护单独的 `requirements.txt`。
 
 ## 选择 Conda 执行环境
 

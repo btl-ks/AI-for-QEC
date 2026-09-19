@@ -2,7 +2,7 @@
 
 > 本文是任务路线图，不是当前目录树或能力说明。当前代码分层与文件放置规则见 [PROJECT_DESIGN.md](PROJECT_DESIGN.md)，外部工具边界见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)。任务完成状态必须以代码、测试和对应 Exit Criteria 为准。
 
-> 版本：v3.3（2026-09-19；补充解码器目录决策点）
+> 版本：v3.4（2026-09-19；完成项目依赖锁定）
 > 读者：项目维护者、协作者、coding agent
 > 依据：2026-09-14 架构与代码复核，以及 2026-09-15 技术栈核验（摘要见 §1 与 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)）
 > 规则：每个 Phase 有退出标准（Exit Criteria）；未满足时，不开始依赖它的后续工作。
@@ -71,7 +71,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 | 顺序 | 要做的事 | 对应任务及完成证据 |
 |---|---|---|
 | 1 | 收紧数据与 run 生命周期，再做长时间论文训练 | P0.14 按生成规格复用数据；P0.15/18 收敛中断并明确 `resumed_from`；P0.16/17 恢复训练与解码；P0.19 防止后续阶段改写已登记产物。用中断/续跑与 hash 回归测试验收。 |
-| 2 | 固定 Python 依赖和安装入口，可与第 1 项并行 | P1.1/P3.1 声明 `[sim]`、`[torch]`；P4.10 采用 `pyproject.toml` + uv、提交锁文件并验证 CPU/CUDA 支持矩阵；P4.1 提供 wheel 可安装的 `ai-qec` CLI，移除脚本的 `sys.path` 注入。 |
+| 2 | 固定 Python 依赖和安装入口，可与第 1 项并行 | **P4.10 已完成**：`pyproject.toml` 分组、`uv.lock`、WSL 锁检查/全组合 dry-run/wheel 构建已通过；P4.1 仍待提供 wheel 可安装的 `ai-qec` CLI 并移除脚本的 `sys.path` 注入。P1.1/P3.1 仍需在真实 Stim/神经能力落地时验收。 |
 | 3 | 接入真实 QEC 库，建立一条电路级纵切面 | P1.2–P1.9：Stim 采样和 DEM、schema v2/分片、PyMatching MWPM、Sinter 兼容与 LER；用相同 shots、observable truth 和协议验证。 |
 | 4 | 建立可恢复的神经训练与公平对照 | P3.2–P3.5 将注册表、输入表示、模型、训练器放入共享包；P3.6/3.7 在 P2 冻结的 split/benchmark 上做校准与对照。论文 RBM 专属 CD-k/Gibbs 保持独立测试。 |
 | 5 | 固定工程门禁与交付 | P4.2–P4.5、P4.9：lint/type/测试、wheel/CLI fresh install、CI 与文档；P0.10/P4.10 让论文包引用经验证的依赖锁和运行身份。 |
@@ -240,7 +240,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [ ] **P4.7** 大数据集与 checkpoint 版本管理（待决策 DEC-2）；无论采用本地 hash、DVC 或对象存储，run 中只引用不可变 content ID。P0.7 默认先使用本地 immutable + sha256，不等待此决策。
 - [ ] **P4.8** 占位模块收缩：P0.3 已保证 fail-loud；本任务删除无调用方的空壳文件，或移到 roadmap/实验命名空间。保留的公共模块必须有 owner、状态、调用方和测试（待决策 DEC-4）。
 - [ ] **P4.9** 更新 README，补齐 `docs/datasets/`、`docs/models/`；README 的能力表由 registry/capability manifest 生成或测试，避免再次与实现漂移。
-- [ ] **P4.10** 可重建依赖：使用 `pyproject.toml` + uv 管理 `[sim]`、`[torch]` extras 和 `dependency-groups.dev`，提交并审查 `uv.lock`；解决 `requirements.txt` 与项目元数据重复声明。验证 WSL fresh environment、支持的 Python/CPU/CUDA 矩阵及 PyTorch wheel 来源，不自动替换现有 Conda `quantum` 执行路径。P0.10 消费锁定结果；正式 run 与 paper package 记录并验证 lock/hash、解释器与关键包版本。
+- [x] **P4.10** 可重建依赖：使用 `pyproject.toml` + uv 管理 `[sim]`、`[torch]`、`[plot]`、`[notebook]` extras 和 `dependency-groups.dev`，提交并审查 `uv.lock`；移除重复的 `requirements.txt`。已验证 WSL fresh environment 的锁文件解析、全组合 dry-run、wheel 构建和当前 Conda `quantum` 环境中的关键包；CUDA wheel 仍需在目标机器上做实际安装和 smoke。P0.10 消费锁定结果；正式 run 与 paper package 记录并验证 lock/hash、解释器与关键包版本。
 
 **Exit Criteria**
 - 在 clean checkout / fresh environment 中用已提交的 `uv.lock` 分别同步 `[sim]` 与 `[sim,torch]`，通过 `ai-qec` CLI 完成真实 Stim/MWPM 和神经 smoke；开发工具从 `dependency-groups.dev` 安装。再从构建的 wheel 安装验证 CLI，源码与测试中不再依赖 `sys.path` 注入。
