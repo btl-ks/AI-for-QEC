@@ -16,10 +16,12 @@ def _bootstrap(project_root: Path) -> None:
 
 def _load_existing_metrics(path: Path) -> dict:
     """Load metrics.json if it exists so benchmarks can append to it."""
+    # Return early when not path.exists().
     if not path.exists():
         return {}
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
+    # Choose the first expression when isinstance(data, dict); otherwise use the fallback.
     return data if isinstance(data, dict) else {}
 
 
@@ -42,6 +44,7 @@ def main() -> int:
     from ai_qec.utils.config import first_seed, load_config, write_json
 
     config = load_config(args.config, project_root=project_root)
+    # Follow this branch when config['data']['generator'] == 'toric_code_capacity'.
     if config["data"]["generator"] == "toric_code_capacity":
         report = benchmark_toric_decoders(config, args.run_dir)
         print(f"Benchmark report: {args.run_dir / 'benchmark_report.json'}")
@@ -49,6 +52,7 @@ def main() -> int:
             print(f"{key}: {report[key]:.6g}")
         return 0
     pred_path = args.run_dir / "predictions" / "paper_eval.npz"
+    # Reject this state when not pred_path.exists().
     if not pred_path.exists():
         raise FileNotFoundError(pred_path)
 
@@ -86,5 +90,6 @@ def main() -> int:
     return 0
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

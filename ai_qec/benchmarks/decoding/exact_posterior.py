@@ -62,21 +62,26 @@ def closed_cycle_basis(code: ToricCode) -> np.ndarray:
     pivots: list[int] = []
     row = 0
     for column in range(width):
+        # Keep only values that satisfy reduced[i, column].
         source = next((i for i in range(row, len(reduced)) if reduced[i, column]), None)
+        # Skip the current iteration when source is None.
         if source is None:
             continue
         reduced[[row, source]] = reduced[[source, row]]
         for i in range(len(reduced)):
+            # Follow this branch when i != row and reduced[i, column].
             if i != row and reduced[i, column]:
                 reduced[i] ^= reduced[row]
         pivots.append(column)
         row += 1
+    # Keep only values that satisfy c not in pivots.
     free = [c for c in range(width) if c not in pivots]
     basis = np.zeros((len(free), width), dtype=np.uint8)
     for j, free_column in enumerate(free):
         basis[j, free_column] = 1
         for i, pivot_column in enumerate(pivots):
             basis[j, pivot_column] = reduced[i, free_column]
+    # Reject this state when np.any(parity_check.astype(np.int64) @ basis.T.astype(np.int64) % 2).
     if np.any(parity_check.astype(np.int64) @ basis.T.astype(np.int64) % 2):
         raise RuntimeError("closed-cycle basis does not lie in the kernel of H")
     return basis
@@ -88,6 +93,7 @@ def enumerate_closed_cycles(code: ToricCode) -> tuple[np.ndarray, np.ndarray]:
     The class index is ``2 * winding_x + winding_y``, so index 0 is the trivial class.
     """
     basis = closed_cycle_basis(code)
+    # Reject this state when len(basis) > MAX_ENUMERATED_CYCLE_BITS.
     if len(basis) > MAX_ENUMERATED_CYCLE_BITS:
         raise ValueError(
             f"enumerating 2^{len(basis)} closed cycles is not tractable; "
@@ -104,6 +110,7 @@ def enumerate_closed_cycles(code: ToricCode) -> tuple[np.ndarray, np.ndarray]:
 def pack_chains(chains: np.ndarray) -> np.ndarray:
     """Pack binary chains into one unsigned integer each, one bit per qubit."""
     chains = np.asarray(chains, dtype=np.uint8)
+    # Reject this state when chains.shape[-1] > 64.
     if chains.shape[-1] > 64:
         raise ValueError("chains longer than 64 qubits cannot be packed into uint64")
     return (chains.astype(np.uint64) << np.arange(chains.shape[-1], dtype=np.uint64)).sum(axis=-1)
@@ -120,6 +127,7 @@ def homology_class_posteriors(code: ToricCode, errors: np.ndarray, p_error: floa
     Column ``c`` is the probability that a recovery drawn from ``p(r | S(e))`` leaves
     the cycle ``e + r`` in class ``c``; column 0 is the trivial class.
     """
+    # Reject this state when not 0.0 < p_error < 1.0.
     if not 0.0 < p_error < 1.0:
         raise ValueError("p_error must lie strictly between 0 and 1")
     cycles, classes = enumerate_closed_cycles(code)
@@ -128,6 +136,7 @@ def homology_class_posteriors(code: ToricCode, errors: np.ndarray, p_error: floa
     bounds = np.searchsorted(classes, np.arange(5))
     ratio = Fraction(p_error).limit_denominator(10**6)
     numerator, denominator = ratio.numerator, ratio.denominator - ratio.numerator
+    # Reject this state when denominator <= 0.
     if denominator <= 0:
         raise ValueError("p_error must be below 1 to give a positive weight ratio")
 
@@ -138,6 +147,7 @@ def homology_class_posteriors(code: ToricCode, errors: np.ndarray, p_error: floa
         totals = []
         for sector in range(4):
             histogram = np.bincount(weight[bounds[sector]:bounds[sector + 1]], minlength=code.num_data_qubits + 1)
+            # Keep only values that satisfy count.
             totals.append(sum(
                 int(count) * numerator**w * denominator**(code.num_data_qubits - w)
                 for w, count in enumerate(histogram) if count
@@ -169,6 +179,7 @@ def exact_posterior_reference(code: ToricCode, errors: np.ndarray, p_error: floa
         totals = []
         for sector in range(4):
             histogram = np.bincount(weight[bounds[sector]:bounds[sector + 1]], minlength=code.num_data_qubits + 1)
+            # Keep only values that satisfy count.
             totals.append(sum(
                 int(count) * numerator**w * denominator**(code.num_data_qubits - w)
                 for w, count in enumerate(histogram) if count
@@ -177,10 +188,12 @@ def exact_posterior_reference(code: ToricCode, errors: np.ndarray, p_error: floa
         ideal_failures += 1.0 - totals[0] / total
         largest = max(totals)
         tied = totals.count(largest)
+        # Follow this branch when totals[0] != largest.
         if totals[0] != largest:
             trivial_wins += 1
             ties_fail += 1
             random_failures += 1
+        # Use this alternative branch when tied > 1.
         elif tied > 1:
             tie_shots += 1
             ties_fail += 1

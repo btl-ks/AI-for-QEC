@@ -80,7 +80,9 @@ class RBMDataTrainingTest(unittest.TestCase):
 
             first = qec.run_rbm_training(config, root, root / "first")
             second_metrics = train_rbm(config, root, root / "second")
+            # Keep only values that satisfy key != 'training_time_seconds'.
             first_metrics = {key: value for key, value in first.summary["metrics"].items() if key != "training_time_seconds"}
+            # Keep only values that satisfy key != 'training_time_seconds'.
             second_metrics = {key: value for key, value in second_metrics.items() if key != "training_time_seconds"}
             self.assertEqual(first_metrics, second_metrics)
             self.assertEqual(len(first.summary["history"]), 2)
@@ -115,5 +117,6 @@ class RBMDataTrainingTest(unittest.TestCase):
             self.assertAlmostEqual(result.summary["history"][0]["train_reconstruction_bce"], 41 / 11, places=5)
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     unittest.main()

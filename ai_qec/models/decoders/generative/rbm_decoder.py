@@ -25,6 +25,7 @@ def first_compatible_chain(error: torch.Tensor, target: torch.Tensor, parity_che
     syndrome = torch.remainder(error.to(torch.float32) @ parity_check.T.to(torch.float32), 2)
     compatible = torch.all(syndrome == target.to(torch.float32), dim=1)
     matches = torch.nonzero(compatible, as_tuple=False)
+    # Choose the first expression when matches.numel(); otherwise use the fallback.
     return int(matches[0, 0].item()) if matches.numel() else None
 
 
@@ -35,10 +36,13 @@ class RBMGibbsDecoder:
         self, model: JointErrorSyndromeRBM, code: ToricCode, *, burn_in: int,
         max_steps: int, parallel_chains: int = 1, device: str = "cpu",
     ) -> None:
+        # Reject this state when the invalid compound condition is detected.
         if model.error_units != code.num_data_qubits or model.syndrome_units != code.num_syndrome_bits:
             raise ValueError("RBM dimensions do not match the toric code")
+        # Reject this state when the invalid compound condition is detected.
         if burn_in < 0 or max_steps < 1 or burn_in >= max_steps or parallel_chains < 1:
             raise ValueError("require 0 <= burn_in < max_steps and parallel_chains >= 1")
+        # Reject this state when the invalid compound condition is detected.
         if device not in ("cpu", "cuda") or (device == "cuda" and not torch.cuda.is_available()):
             raise ValueError(f"PyTorch device is unavailable: {device}")
         self.model = model.to(device).eval()
@@ -52,10 +56,13 @@ class RBMGibbsDecoder:
     @torch.no_grad()
     def decode(self, syndrome: np.ndarray | DecodeRequest, *, rng: np.random.Generator | None = None) -> DecodeResult:
         """Return the first compatible recovery after burn-in, or a timeout."""
+        # Choose the first expression when isinstance(syndrome, DecodeRequest); otherwise use the fallback.
         request = syndrome if isinstance(syndrome, DecodeRequest) else DecodeRequest(syndrome)
         target_np = np.asarray(request.syndrome, dtype=np.uint8)
+        # Reject this state when the invalid compound condition is detected.
         if target_np.shape != (self.code.num_syndrome_bits,) or not np.isin(target_np, (0, 1)).all():
             raise ValueError("syndrome must be one binary toric syndrome vector")
+        # Choose the first expression when rng is not None; otherwise use the fallback.
         rng = rng if rng is not None else np.random.default_rng()
         generator = torch_generator_from(rng, self.device)
         target = torch.as_tensor(target_np, dtype=torch.int64, device=self.device)
@@ -63,9 +70,11 @@ class RBMGibbsDecoder:
         for step in range(1, self.max_steps + 1):
             hidden = self.model.sample_hidden(error, target, generator)
             error = self.model.sample_error(hidden, generator)
+            # Skip the current iteration when step <= self.burn_in.
             if step <= self.burn_in:
                 continue
             chain = first_compatible_chain(error, target, self.parity_check)
+            # Follow this branch when chain is not None.
             if chain is not None:
                 recovery = error[chain].to(torch.uint8).cpu().numpy()
                 return DecodeResult(recovery, True, steps=step, metadata={"parallel_chains": self.parallel_chains, "accepted_chain": chain, "device": self.device})

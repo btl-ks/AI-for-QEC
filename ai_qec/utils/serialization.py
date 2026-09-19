@@ -18,6 +18,7 @@ def read_json(path: str | Path) -> dict[str, Any]:
     """Read a UTF-8 JSON object from disk."""
     with Path(path).open("r", encoding="utf-8") as handle:
         data = json.load(handle)
+    # Reject this state when not isinstance(data, dict).
     if not isinstance(data, dict):
         raise ValueError(f"JSON must contain an object: {path}")
     return data

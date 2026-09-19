@@ -26,12 +26,15 @@ def main() -> int:
     with np.load(args.data, allow_pickle=False) as data:
         recomputed = regression_metrics(data["target_strength"], model.predict_target(data["features"]), "test")
     saved = json.loads(args.metrics.read_text(encoding="utf-8"))["metrics"]
+    # Keep only values that satisfy the compound filter.
     mismatches = {key: (value, saved.get(key)) for key, value in recomputed.items() if not isinstance(saved.get(key), (int, float)) or abs(value - saved[key]) > args.atol}
+    # Reject this state when mismatches.
     if mismatches:
         raise SystemExit(f"Metric verification failed: {mismatches}")
     print(json.dumps(recomputed, indent=2, sort_keys=True))
     return 0
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

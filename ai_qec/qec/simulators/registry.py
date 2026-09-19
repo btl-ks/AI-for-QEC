@@ -16,12 +16,16 @@ from ai_qec.qec.noise.phase_flip import IndependentPhaseFlipNoise
 def build_backend(config: dict[str, Any], circuit: QECCircuit, noise: NoiseModel) -> QECBackend:
     """Build the configured simulator backend."""
     generator = str(config["data"]["generator"]).lower()
+    # Return early when generator == 'toy_synthetic'.
     if generator == "toy_synthetic":
         return ToySyntheticQECBackend(circuit=circuit, noise=noise, config=config)
+    # Follow this branch when generator == 'toric_code_capacity'.
     if generator == "toric_code_capacity":
+        # Reject this state when the invalid compound condition is detected.
         if not isinstance(circuit.code, ToricCode) or not isinstance(noise, IndependentPhaseFlipNoise):
             raise ValueError("toric_code_capacity requires ToricCode and IndependentPhaseFlipNoise")
         return ToricCodeCapacityBackend(code=circuit.code, noise=noise)
+    # Reject this state when generator == 'stim'.
     if generator == "stim":
         raise NotImplementedError("generator 'stim' is not implemented; Phase 1 provides the real Stim backend")
     raise ValueError(f"Unknown data generator/backend: {generator}")

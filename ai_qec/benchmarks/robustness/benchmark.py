@@ -27,10 +27,13 @@ def nuisance_bucket_report(
     for idx, label in enumerate(labels):
         lo = quantiles[idx]
         hi = quantiles[idx + 1]
+        # Follow this branch when idx == len(labels) - 1.
         if idx == len(labels) - 1:
             mask = (nuisance_score >= lo) & (nuisance_score <= hi)
+        # Handle all remaining cases.
         else:
             mask = (nuisance_score >= lo) & (nuisance_score < hi)
+        # Follow this branch when not np.any(mask).
         if not np.any(mask):
             report[f"robustness/{label}_count"] = 0.0
             continue

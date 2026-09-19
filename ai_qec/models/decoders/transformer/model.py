@@ -78,6 +78,7 @@ class LinearDetectorSummaryDecoder:
 
     def _check_fitted(self) -> None:
         """Raise if training parameters required for prediction are missing."""
+        # Reject this state when the invalid compound condition is detected.
         if (
             self.feature_mean is None
             or self.feature_scale is None
@@ -143,9 +144,11 @@ class LinearDetectorSummaryDecoder:
         """Load a model and identity metadata, rejecting malformed checkpoints."""
         with np.load(path, allow_pickle=False) as data:
             required = {"feature_names", "feature_mean", "feature_scale", "target_weights", "logical_weights", "metadata", "ridge_alpha"}
+            # Reject this state when set(data.files) != required.
             if set(data.files) != required:
                 raise ValueError("Checkpoint schema mismatch")
             metadata = json.loads(str(data["metadata"].item()))
+            # Reject this state when not isinstance(metadata, dict).
             if not isinstance(metadata, dict):
                 raise ValueError("Checkpoint metadata must be an object")
             model = cls(

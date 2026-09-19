@@ -9,6 +9,7 @@ import unittest
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# Follow this branch when str(PROJECT_ROOT) not in sys.path.
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -31,11 +32,14 @@ def gf2_rank(matrix: np.ndarray) -> int:
     reduced = matrix.copy() % 2
     rank = 0
     for column in range(reduced.shape[1]):
+        # Keep only values that satisfy reduced[i, column].
         pivot = next((i for i in range(rank, len(reduced)) if reduced[i, column]), None)
+        # Skip the current iteration when pivot is None.
         if pivot is None:
             continue
         reduced[[rank, pivot]] = reduced[[pivot, rank]]
         for i in range(len(reduced)):
+            # Follow this branch when i != rank and reduced[i, column].
             if i != rank and reduced[i, column]:
                 reduced[i] ^= reduced[rank]
         rank += 1
@@ -87,6 +91,7 @@ class EveryCodeSatisfiesTheStabilizerContract(unittest.TestCase):
                     code.logical_class(cycles[1:]) ^ code.logical_class(cycles[:1]),
                 ))
                 generators = code.trivial_cycle_generators()
+                # Follow this branch when len(generators).
                 if len(generators):
                     self.assertFalse(code.logical_class(generators).any())
 
@@ -165,5 +170,6 @@ class RepetitionCodeStructure(unittest.TestCase):
                 self.assertEqual(weights, [0, distance])
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     unittest.main()

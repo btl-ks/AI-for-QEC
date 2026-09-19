@@ -109,5 +109,6 @@ class ConfigAndDatasetContractTest(unittest.TestCase):
                 module.resolve_package_root(root / "paper" / "releases" / "escape", root, "escape", {})
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     unittest.main()

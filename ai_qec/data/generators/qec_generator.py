@@ -74,15 +74,19 @@ def _validate_batch(batch: dict[str, Any], n_samples: int, n_features: int) -> N
         "measurement_rate": ((n_samples,), np.floating),
         "logical_probability": ((n_samples,), np.floating),
     }
+    # Reject this state when set(batch) != set(expected).
     if set(batch) != set(expected):
         raise ValueError(f"Backend batch keys mismatch: expected {sorted(expected)}, got {sorted(batch)}")
     for key, (shape, kind) in expected.items():
         value = np.asarray(batch[key])
+        # Reject this state when the invalid compound condition is detected.
         if value.shape != shape or not np.issubdtype(value.dtype, kind) or not np.all(np.isfinite(value)):
             raise ValueError(f"Invalid backend batch field {key}: shape={value.shape}, dtype={value.dtype}")
+    # Reject this state when not np.isin(batch['logical_label'], [0, 1]).all().
     if not np.isin(batch["logical_label"], [0, 1]).all():
         raise ValueError("logical_label must be binary")
     for key in ("target_strength", "depolarizing_rate", "measurement_rate", "logical_probability"):
+        # Reject this state when (batch[key] < 0).any() or (batch[key] > 1).any().
         if (batch[key] < 0).any() or (batch[key] > 1).any():
             raise ValueError(f"{key} must be in [0, 1]")
 
@@ -93,12 +97,14 @@ def generate_dataset(
 ) -> dict[str, Any]:
     """Atomically generate immutable train/validation/test NPZ data and manifest."""
 
+    # Follow this branch when str(config['data']['generator']).lower() == 'toric_code_capacity'.
     if str(config["data"]["generator"]).lower() == "toric_code_capacity":
         from ai_qec.data.generators.toric_generator import generate_toric_dataset
 
         return generate_toric_dataset(config, project_root)
 
     output_path = data_output_dir(config, project_root)
+    # Follow this branch when output_path.exists() or output_path.is_symlink().
     if output_path.exists() or output_path.is_symlink():
         # Exact immutable content may be reused; a stale/tampered directory is
         # rejected by the same verifier used before train/evaluate.
@@ -158,6 +164,7 @@ def generate_dataset(
             },
         ).to_dict()
         write_json(staging / "dataset_manifest.json", manifest)
+        # Reject this state when output_path.exists().
         if output_path.exists():
             raise FileExistsError(f"Dataset appeared while generating: {output_path}")
         os.rename(staging, output_path)

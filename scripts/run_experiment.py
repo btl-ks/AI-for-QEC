@@ -40,11 +40,14 @@ VALIDATION_EXIT_CODE = 2
 def _conda_executable() -> str | None:
     """Return the configured Conda executable, if one is available."""
     configured = os.environ.get("CONDA_EXE")
+    # Follow this branch when configured.
     if configured:
         path = Path(configured).expanduser()
+        # Return early when path.is_file().
         if path.is_file():
             return str(path.resolve())
     found = shutil.which("conda")
+    # Choose the first expression when found; otherwise use the fallback.
     return str(Path(found).resolve()) if found else None
 
 
@@ -56,6 +59,7 @@ def resolve_execution(config: dict[str, Any]) -> dict[str, Any]:
     a shell.
     """
     execution = config.get("execution")
+    # Return early when execution is None.
     if execution is None:
         return {
             "provider": "current",
@@ -67,6 +71,7 @@ def resolve_execution(config: dict[str, Any]) -> dict[str, Any]:
 
     conda_env = execution["conda_env"]
     conda = _conda_executable()
+    # Reject this state when conda is None.
     if conda is None:
         raise RuntimeError("execution.conda_env is configured but no 'conda' executable is available")
     probe = "import json, sys; print(json.dumps({'executable': sys.executable, 'prefix': sys.prefix}))"
@@ -74,7 +79,9 @@ def resolve_execution(config: dict[str, Any]) -> dict[str, Any]:
     try:
         proc = subprocess.run(command, capture_output=True, text=True, check=True)
     except (OSError, subprocess.CalledProcessError) as exc:
+        # Choose the first expression when isinstance(exc, subprocess.CalledProcessError) and exc.stderr; otherwise use the fallback.
         stderr = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) and exc.stderr else ""
+        # Choose the first expression when stderr; otherwise use the fallback.
         detail = f": {stderr}" if stderr else ""
         raise RuntimeError(f"could not start Conda environment '{conda_env}'{detail}") from exc
     try:
@@ -83,6 +90,7 @@ def resolve_execution(config: dict[str, Any]) -> dict[str, Any]:
         prefix = str(target["prefix"])
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
         raise RuntimeError(f"Conda environment '{conda_env}' returned an invalid Python probe") from exc
+    # Reject this state when not executable.is_file().
     if not executable.is_file():
         raise RuntimeError(f"Conda environment '{conda_env}' resolved to a missing Python executable: {executable}")
     return {
@@ -129,23 +137,31 @@ def check_outputs(step: ResolvedFlowStep, variables: dict[str, str]) -> list[dic
     for contract in step.outputs:
         path = Path(expand(contract.path, variables))
         exists = path.exists() and not path.is_symlink()
+        # Reject this state when contract.required and (not exists).
         if contract.required and not exists:
             raise RuntimeError(f"Step {step.id} did not create required output: {path}")
+        # Follow this branch when exists and contract.non_empty.
         if exists and contract.non_empty:
+            # Reject this state when path.is_file() and path.stat().st_size == 0.
             if path.is_file() and path.stat().st_size == 0:
                 raise RuntimeError(f"Step {step.id} created empty output: {path}")
+            # Reject this state when path.is_dir() and (not any(path.iterdir())).
             if path.is_dir() and not any(path.iterdir()):
                 raise RuntimeError(f"Step {step.id} created empty output directory: {path}")
+        # Follow this branch when exists and contract.schema_version is not None.
         if exists and contract.schema_version is not None:
+            # Reject this state when not path.is_file().
             if not path.is_file():
                 raise RuntimeError(f"Step {step.id} schema contract requires a file: {path}")
             try:
                 schema = json.loads(path.read_text(encoding="utf-8")).get("schema_version")
             except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
                 raise RuntimeError(f"Step {step.id} schema contract cannot read JSON: {path}") from exc
+            # Reject this state when schema != contract.schema_version.
             if schema != contract.schema_version:
                 raise RuntimeError(f"Step {step.id} schema version mismatch at {path}: {schema}")
         record = {"path": str(path), "artifact_type": contract.artifact_type, "required": contract.required}
+        # Follow this branch when exists and contract.hash_policy == 'sha256' and path.is_file().
         if exists and contract.hash_policy == "sha256" and path.is_file():
             record["sha256"] = sha256(path)
         records.append(record)
@@ -172,22 +188,29 @@ def main() -> int:
         return VALIDATION_EXIT_CODE
     cfg = spec.config
     ids = {step.id for step in spec.flow}
+    # Choose the first expression when args.only is not None; otherwise use the fallback.
     only = set(args.only) if args.only is not None else None
     skip = set(args.skip)
     unknown = (only or set()).union(skip) - ids
+    # Follow this branch when unknown.
     if unknown:
         print(f"Unknown flow step id(s): {', '.join(sorted(unknown))}", file=sys.stderr)
         return VALIDATION_EXIT_CODE
+    # Keep only values that satisfy the compound filter.
     selected = [step for step in spec.flow if step.enabled and step.id not in skip and (only is None or step.id in only)]
+    # Follow this branch when not selected.
     if not selected:
         print("Refusing zero-step run; adjust --only/--skip or the resolved flow.", file=sys.stderr)
         return VALIDATION_EXIT_CODE
+    # Keep only values that satisfy step.enabled.
     partial = len(selected) != len([step for step in spec.flow if step.enabled])
 
     git = git_state(project_root)
     repro = cfg["reproducibility"]
+    # Follow this branch when repro['require_clean_worktree'] and (not args.allow_dirty).
     if repro["require_clean_worktree"] and not args.allow_dirty:
         reason = clean_worktree_error(git)
+        # Follow this branch when reason.
         if reason:
             print(f"Refusing to run: {reason}\nCommit or stash changes, or pass --allow-dirty.", file=sys.stderr)
             return REFUSED_DIRTY_EXIT_CODE
@@ -198,21 +221,26 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"Invalid execution environment: {exc}", file=sys.stderr)
         return VALIDATION_EXIT_CODE
+    # Follow this branch when the compound condition is satisfied.
     if cfg["model"]["implementation"] == "joint_error_syndrome_rbm" and not environment_snapshot["packages"].get("torch"):
         print("Invalid execution environment: joint_error_syndrome_rbm requires PyTorch; install ai-qec[torch] in the selected interpreter.", file=sys.stderr)
         return VALIDATION_EXIT_CODE
+    # Follow this branch when the compound condition is satisfied.
     if cfg["model"]["implementation"] == "joint_error_syndrome_rbm" and cfg["training"].get("device", "cpu") == "cuda":
         probe = subprocess.run(
             [execution["python"], "-c", "import torch; print(int(torch.cuda.is_available()))"],
             capture_output=True, text=True,
         )
+        # Follow this branch when probe.returncode or probe.stdout.strip() != '1'.
         if probe.returncode or probe.stdout.strip() != "1":
             print("Invalid execution environment: training.device='cuda' requires an available PyTorch CUDA device.", file=sys.stderr)
             return VALIDATION_EXIT_CODE
 
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     run_id = f"{stamp}_{config_hash(cfg)[:12]}_{uuid.uuid4().hex[:8]}"
+    # Choose the first expression when args.run_dir; otherwise use the fallback.
     run_dir = args.run_dir.resolve() if args.run_dir else project_root / cfg["outputs"]["runs_root"] / run_id
+    # Follow this branch when run_dir.exists() or run_dir.is_symlink().
     if run_dir.exists() or run_dir.is_symlink():
         print(f"Refusing existing run directory: {run_dir}", file=sys.stderr)
         return VALIDATION_EXIT_CODE
@@ -225,10 +253,14 @@ def main() -> int:
         key: environment_snapshot[key]
         for key in ("python", "executable", "prefix", "platform")
     }
+    # Follow this branch when repro['save_environment'].
     if repro["save_environment"]:
         environment["packages"] = environment_snapshot["packages"]
         environment["distributions_file"] = "environment.json"
+    # Keep only values that satisfy key != 'command_prefix'.
     execution_manifest = {key: value for key, value in execution.items() if key != "command_prefix"}
+    # Choose the first expression when repro['save_git_commit']; otherwise use the fallback.
+    # Choose the first expression when cfg['data']['generator'] == 'toric_code_capacity'; otherwise use the fallback.
     manifest: dict[str, Any] = {
         "schema_version": 1, "run_id": run_id, "experiment": cfg["experiment"]["name"],
         "config": str(config_path), "config_hash": config_hash(cfg), "resolved_plan": "resolved_plan.json",
@@ -238,6 +270,7 @@ def main() -> int:
         "status": "running", "started_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "steps": [], "partial": partial,
     }
+    # Follow this branch when args.dry_run.
     if args.dry_run:
         for step in selected:
             manifest["steps"].append({"id": step.id, "status": "dry-run"})
@@ -252,10 +285,13 @@ def main() -> int:
     (run_dir / "predictions").mkdir()
     shutil.copy2(config_path, run_dir / "config.yaml")
     atomic_json(run_dir / "resolved_plan.json", spec.to_dict())
+    # Follow this branch when repro['save_environment'].
     if repro["save_environment"]:
         atomic_json(run_dir / "environment.json", environment_snapshot["distributions"])
+    # Follow this branch when repro['save_git_commit'] and git.get('dirty').
     if repro["save_git_commit"] and git.get("dirty"):
         patch = git_diff(project_root)
+        # Follow this branch when patch and patch[0].
         if patch and patch[0]:
             (run_dir / "git_diff.patch").write_bytes(patch[0])
             git["patch_file"] = "git_diff.patch"
@@ -263,13 +299,16 @@ def main() -> int:
 
     try:
         for step in spec.flow:
+            # Follow this branch when not step.enabled.
             if not step.enabled:
                 manifest["steps"].append({"id": step.id, "status": "disabled", "reason": "config enabled=false"})
                 continue
+            # Follow this branch when step not in selected.
             if step not in selected:
                 manifest["steps"].append({"id": step.id, "status": "skipped", "reason": "--only/--skip selection"})
                 continue
             command = list(execution["command_prefix"])
+            # Choose the first expression when step.script; otherwise use the fallback.
             command.extend([execution["python"], str(project_root / step.script)] if step.script else [execution["python"], "-m", str(step.module)])
             command.extend(expand(value, variables) for value in step.args)
             record: dict[str, Any] = {"id": step.id, "command": command, "status": "running", "started_at": dt.datetime.now(dt.timezone.utc).isoformat()}
@@ -280,6 +319,7 @@ def main() -> int:
             with log.open("w", encoding="utf-8") as handle:
                 proc = subprocess.run(command, cwd=project_root, stdout=handle, stderr=subprocess.STDOUT, text=True)
             record.update({"returncode": proc.returncode, "log": str(log), "duration_seconds": time.perf_counter() - started, "finished_at": dt.datetime.now(dt.timezone.utc).isoformat()})
+            # Follow this branch when proc.returncode.
             if proc.returncode:
                 record["status"] = "failed"
                 manifest.update(status="failed", failed_step=step.id, finished_at=dt.datetime.now(dt.timezone.utc).isoformat())
@@ -300,11 +340,13 @@ def main() -> int:
         return 1
 
     manifest["dataset"] = dataset_reference(cfg, project_root)
+    # Choose the first expression when partial; otherwise use the fallback.
     manifest.update(status="partial" if partial else "success", finished_at=dt.datetime.now(dt.timezone.utc).isoformat())
     atomic_json(run_dir / "run_manifest.json", manifest)
     print(f"Run completed: {run_dir} ({manifest['status']})")
     return 0
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

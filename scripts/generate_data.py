@@ -37,5 +37,6 @@ def main() -> int:
     return 0
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

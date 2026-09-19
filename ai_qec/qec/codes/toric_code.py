@@ -22,6 +22,7 @@ class ToricCode(StabilizerCode):
     distance: int = 4
 
     def __post_init__(self) -> None:
+        # Reject this state when self.distance < 2.
         if self.distance < 2:
             raise ValueError("Toric-code lattice size must be at least 2")
 
@@ -92,6 +93,7 @@ class ToricCode(StabilizerCode):
         by the readout matrix; the unit tests pin the two to agree.
         """
         cycle = _binary_edges(cycle, self.num_data_qubits, "cycle")
+        # Reject this state when require_closed and np.any(self.syndrome(cycle)).
         if require_closed and np.any(self.syndrome(cycle)):
             raise ValueError("Homology requires a closed cycle")
         horizontal, vertical = self.split_edges(cycle)

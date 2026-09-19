@@ -20,6 +20,7 @@ class ExactToricMWPMDecoder:
     """
 
     def __init__(self, code: ToricCode, *, max_exact_defects: int = 18) -> None:
+        # Reject this state when max_exact_defects < 2 or max_exact_defects % 2.
         if max_exact_defects < 2 or max_exact_defects % 2:
             raise ValueError("max_exact_defects must be an even integer >= 2")
         self.code = code
@@ -27,22 +28,29 @@ class ExactToricMWPMDecoder:
 
     def decode(self, syndrome: np.ndarray | DecodeRequest, *, rng: np.random.Generator | None = None) -> np.ndarray | DecodeResult:
         """Return an exact minimum-weight recovery for a valid toric syndrome."""
+        # Choose the first expression when isinstance(syndrome, DecodeRequest); otherwise use the fallback.
         request = syndrome if isinstance(syndrome, DecodeRequest) else None
+        # Follow this branch when request is not None.
         if request is not None:
             syndrome = request.syndrome
         _ = rng
         target = np.asarray(syndrome, dtype=np.uint8)
+        # Reject this state when the invalid compound condition is detected.
         if target.shape != (self.code.num_syndrome_bits,) or not np.isin(target, (0, 1)).all():
             raise ValueError("syndrome must be a binary toric syndrome vector")
         defects = [(int(x), int(y)) for y, x in np.argwhere(target.reshape(self.code.distance, self.code.distance))]
+        # Reject this state when len(defects) % 2.
         if len(defects) % 2:
             raise ValueError("toric syndrome must contain an even number of defects")
+        # Reject this state when len(defects) > self.max_exact_defects.
         if len(defects) > self.max_exact_defects:
             raise RuntimeError(
                 f"exact MWPM is limited to {self.max_exact_defects} defects; install a scalable matching backend for this syndrome"
             )
+        # Follow this branch when not defects.
         if not defects:
             recovery = np.zeros(self.code.num_data_qubits, dtype=np.uint8)
+            # Choose the first expression when request is not None; otherwise use the fallback.
             return DecodeResult(recovery, True, steps=0, metadata={"method": "exact_toric_mwpm"}) if request is not None else recovery
 
         pairs = self._minimum_pairs(defects)
@@ -50,8 +58,10 @@ class ExactToricMWPMDecoder:
         for first, second in pairs:
             self._add_shortest_path(recovery, defects[first], defects[second])
         flat = np.concatenate((recovery[0].reshape(-1), recovery[1].reshape(-1)))
+        # Reject this state when not np.array_equal(self.code.syndrome(flat), target).
         if not np.array_equal(self.code.syndrome(flat), target):
             raise RuntimeError("MWPM path construction produced an inconsistent recovery")
+        # Choose the first expression when request is not None; otherwise use the fallback.
         return DecodeResult(flat, True, steps=None, metadata={"method": "exact_toric_mwpm"}) if request is not None else flat
 
     def _minimum_pairs(self, defects: list[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
@@ -59,6 +69,7 @@ class ExactToricMWPMDecoder:
 
         @lru_cache(maxsize=None)
         def solve(mask: int) -> tuple[int, tuple[tuple[int, int], ...]]:
+            # Return early when mask == 0.
             if mask == 0:
                 return 0, ()
             first = (mask & -mask).bit_length() - 1
@@ -72,6 +83,7 @@ class ExactToricMWPMDecoder:
                 tail_cost, tail_pairs = solve(remaining ^ bit)
                 cost = self._distance(defects[first], defects[second]) + tail_cost
                 pair_tuple = ((first, second),) + tail_pairs
+                # Follow this branch when cost < best_cost or (cost == best_cost and pair_tuple < best_pairs).
                 if cost < best_cost or (cost == best_cost and pair_tuple < best_pairs):
                     best_cost, best_pairs = cost, pair_tuple
                 candidate_mask ^= bit
@@ -92,18 +104,22 @@ class ExactToricMWPMDecoder:
         while x != target_x:
             forward = (target_x - x) % self.code.distance
             backward = (x - target_x) % self.code.distance
+            # Follow this branch when forward <= backward.
             if forward <= backward:
                 recovery[0, y, x] ^= 1
                 x = (x + 1) % self.code.distance
+            # Handle all remaining cases.
             else:
                 recovery[0, y, (x - 1) % self.code.distance] ^= 1
                 x = (x - 1) % self.code.distance
         while y != target_y:
             forward = (target_y - y) % self.code.distance
             backward = (y - target_y) % self.code.distance
+            # Follow this branch when forward <= backward.
             if forward <= backward:
                 recovery[1, y, x] ^= 1
                 y = (y + 1) % self.code.distance
+            # Handle all remaining cases.
             else:
                 recovery[1, (y - 1) % self.code.distance, x] ^= 1
                 y = (y - 1) % self.code.distance

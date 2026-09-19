@@ -45,5 +45,6 @@ class ExperimentSetupTest(unittest.TestCase):
             require_experiment_kind(parameters, generator="toric_code_capacity", model="other_model")
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     unittest.main()

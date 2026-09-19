@@ -32,18 +32,21 @@ class ToySyntheticQECBackend(QECBackend):
         detectors = self.circuit.code.num_stabilizers_per_round
 
         base_p = 4.5 * draw.depolarizing_rate + 3.0 * draw.measurement_rate
+        # Follow this branch when self.match_density.
         if self.match_density:
             base_p = base_p - 0.55 * self.crosstalk_gain * draw.target_strength
         base_p = np.clip(base_p, 1e-5, 0.25)
 
         events = rng.random((n_samples, rounds, detectors)) < base_p[:, None, None]
 
+        # Follow this branch when detectors > 1.
         if detectors > 1:
             pair_p = np.clip(self.crosstalk_gain * draw.target_strength, 0.0, 0.12)
             pair_mask = rng.random((n_samples, rounds, detectors - 1)) < pair_p[:, None, None]
             events[:, :, 1:] |= pair_mask
             events[:, :, :-1] |= pair_mask
 
+        # Follow this branch when rounds > 1.
         if rounds > 1:
             temporal_p = np.clip(0.35 * self.crosstalk_gain * draw.target_strength, 0.0, 0.05)
             temporal_mask = rng.random((n_samples, rounds - 1, detectors)) < temporal_p[:, None, None]

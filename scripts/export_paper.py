@@ -73,6 +73,7 @@ def load_yaml(path: Path) -> dict[str, Any]:
     """Load an artifact YAML file and require a top-level mapping."""
     with path.open("r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
+    # Reject this state when not isinstance(data, dict).
     if not isinstance(data, dict):
         raise ValueError("Config must be a mapping.")
     return data
@@ -80,23 +81,29 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 def validate_run_closure(cfg: dict[str, Any], run_dir: Path | None) -> None:
     """Require a successful, identity-consistent run before publishing a package."""
+    # Reject this state when run_dir is None.
     if run_dir is None:
         raise ExportError("--run-dir is required: paper packages may not be built without a completed run")
     manifest_path = run_dir / "run_manifest.json"
+    # Reject this state when not manifest_path.is_file().
     if not manifest_path.is_file():
         raise ExportError(f"Run manifest is missing: {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    # Reject this state when manifest.get('status') != 'success'.
     if manifest.get("status") != "success":
         raise ExportError("Only a complete successful run can be exported")
+    # Reject this state when manifest.get('config_hash') != config_hash(cfg).
     if manifest.get("config_hash") != config_hash(cfg):
         raise ExportError("Run config hash does not match export config")
     dataset = manifest.get("dataset", {})
+    # Reject this state when not dataset.get('config_hash_matches_run').
     if not dataset.get("config_hash_matches_run"):
         raise ExportError("Run dataset identity is stale or not validated")
 
 
 def validate_exported_run_artifacts(export_cfg: dict[str, Any], run_dir: Path, variables: dict[str, str], manifest: dict[str, Any]) -> None:
     """Bind every allowlisted run file to the SHA-256 recorded by the runner."""
+    # Keep only values that satisfy artifact.get('sha256').
     recorded = {
         Path(artifact["path"]).resolve(): artifact.get("sha256")
         for step in manifest.get("steps", [])
@@ -106,9 +113,11 @@ def validate_exported_run_artifacts(export_cfg: dict[str, Any], run_dir: Path, v
     for item in export_cfg["include"]:
         raw = expand(str(item["from"]), variables)
         source = Path(raw)
+        # Skip the current iteration when not source.is_absolute().
         if not source.is_absolute():
             continue
         source = source.resolve()
+        # Reject this state when the invalid compound condition is detected.
         if is_within(source, run_dir) and recorded.get(source) != sha256(source):
             raise ExportError(f"Run artifact is absent from the manifest or has a hash mismatch: {source}")
 
@@ -131,6 +140,7 @@ def is_within(path: Path, root: Path) -> bool:
 
 def validate_name(value: str, label: str) -> str:
     """Require a single safe path segment for package names and release IDs."""
+    # Reject this state when not NAME_PATTERN.fullmatch(value) or value == LATEST_POINTER.
     if not NAME_PATTERN.fullmatch(value) or value == LATEST_POINTER:
         raise ExportError(
             f"Invalid {label} {value!r}: use 1-128 letters, digits, '.', '_' or '-', "
@@ -149,8 +159,10 @@ def protected_roots(cfg: dict[str, Any], project_root: Path, run_dir: Path | Non
     """Collect run and data directories that an export must never overlap."""
     roots = {"runs root": (project_root / str(cfg.get("outputs", {}).get("runs_root", "runs"))).resolve()}
     data_dir = cfg.get("data", {}).get("output_dir")
+    # Follow this branch when data_dir.
     if data_dir:
         roots["data directory"] = (project_root / str(data_dir)).resolve()
+    # Follow this branch when run_dir is not None.
     if run_dir is not None:
         roots["run directory"] = run_dir
     return roots
@@ -164,20 +176,26 @@ def resolve_package_root(
 ) -> Path:
     """Resolve the package directory and refuse anything outside paper/releases/."""
     releases_root = (project_root / "paper" / "releases").resolve()
+    # Reject this state when is_within(project_root, releases_root).
     if is_within(project_root, releases_root):
         raise ExportError(f"Refusing to export: releases root {releases_root} resolves to the project root or an ancestor.")
 
+    # Choose the first expression when output is not None; otherwise use the fallback.
     target = output if output is not None else releases_root / package_name
     resolved = target.resolve()
+    # Reject this state when is_within(project_root, resolved).
     if is_within(project_root, resolved):
         raise ExportError(f"Refusing --output {resolved}: it is the project root or one of its ancestors.")
     for label, root in protected.items():
+        # Reject this state when is_within(resolved, root) or is_within(root, resolved).
         if is_within(resolved, root) or is_within(root, resolved):
             raise ExportError(f"Refusing --output {resolved}: it overlaps the {label} {root}.")
+    # Reject this state when resolved == releases_root or not is_within(resolved, releases_root).
     if resolved == releases_root or not is_within(resolved, releases_root):
         raise ExportError(
             f"Refusing --output {target} (resolves to {resolved}): exports must be a package directory under {releases_root}."
         )
+    # Reject this state when resolved.exists() and (not resolved.is_dir()).
     if resolved.exists() and not resolved.is_dir():
         raise ExportError(f"Refusing --output {resolved}: it exists and is not a directory.")
     return resolved
@@ -187,10 +205,12 @@ def ensure_under_root(path: Path, root: Path, allow_run_dir: Path | None) -> Pat
     """Reject export sources outside the project root or selected run dir."""
     resolved = path.resolve()
     roots = [root.resolve()]
+    # Follow this branch when allow_run_dir is not None.
     if allow_run_dir is not None:
         roots.append(allow_run_dir.resolve())
 
     for allowed in roots:
+        # Return early when is_within(resolved, allowed).
         if is_within(resolved, allowed):
             return resolved
     raise ExportError(f"Refusing to export path outside allowed roots: {path} -> {resolved}")
@@ -199,6 +219,7 @@ def ensure_under_root(path: Path, root: Path, allow_run_dir: Path | None) -> Pat
 def safe_dest(root: Path, relative: str) -> Path:
     """Resolve an artifact destination while preventing path traversal."""
     dest = (root / relative).resolve()
+    # Reject this state when dest == root.resolve() or not is_within(dest, root.resolve()).
     if dest == root.resolve() or not is_within(dest, root.resolve()):
         raise ExportError(f"Unsafe export destination: {relative}")
     return dest
@@ -216,22 +237,27 @@ def copy_allowlisted(
     dst_raw = expand(str(item["to"]), variables)
 
     src = Path(src_raw)
+    # Follow this branch when not src.is_absolute().
     if not src.is_absolute():
         src = project_root / src
     src = ensure_under_root(src, project_root, run_dir)
 
     dst = safe_dest(release_root, dst_raw)
 
+    # Reject this state when not src.exists().
     if not src.exists():
         raise FileNotFoundError(src)
+    # Reject this state when dst.exists().
     if dst.exists():
         raise ExportError(f"Duplicate export destination: {dst_raw}")
 
     written: list[Path] = []
+    # Follow this branch when src.is_file().
     if src.is_file():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
         written.append(dst)
+    # Use this alternative branch when src.is_dir().
     elif src.is_dir():
         # Directory export is still explicit: only this listed directory is copied.
         # Use sparingly; for strict minimal packages prefer file-level mappings.
@@ -239,7 +265,9 @@ def copy_allowlisted(
         for path in src.rglob("*"):
             ensure_under_root(path, project_root, run_dir)
         shutil.copytree(src, dst)
+        # Keep only values that satisfy p.is_file().
         written.extend([p for p in dst.rglob("*") if p.is_file()])
+    # Handle all remaining cases.
     else:
         raise ExportError(f"Unsupported source type: {src}")
     return written
@@ -258,6 +286,7 @@ def select_public_config(cfg: dict[str, Any], keys: list[str]) -> dict[str, Any]
     """Keep only public config sections and drop private execution metadata."""
     public: dict[str, Any] = {}
     for key in keys:
+        # Follow this branch when key in cfg.
         if key in cfg:
             public[key] = cfg[key]
     # paper_export may contain private internal source paths; do not expose it.
@@ -280,8 +309,10 @@ def payload_files(payload_root: Path) -> set[str]:
     """List payload files relative to the payload root, rejecting symlinks."""
     files: set[str] = set()
     for path in payload_root.rglob("*"):
+        # Reject this state when path.is_symlink().
         if path.is_symlink():
             raise ExportError(f"Release payload contains a symlink: {path}")
+        # Follow this branch when path.is_file().
         if path.is_file():
             files.add(path.relative_to(payload_root).as_posix())
     return files
@@ -299,6 +330,7 @@ def build_payload(
     """Copy allowlisted files and write public config, README, metadata and hash manifest."""
     export_cfg = cfg.get("paper_export", {})
     for item in export_cfg.get("include", []):
+        # Reject this state when not isinstance(item, dict) or 'from' not in item or 'to' not in item.
         if not isinstance(item, dict) or "from" not in item or "to" not in item:
             raise ExportError("Every paper_export.include item requires 'from' and 'to'.")
         copy_allowlisted(
@@ -356,9 +388,11 @@ def verify_payload(payload_root: Path) -> dict[str, str]:
     """Check that the hash manifest lists exactly the payload files with matching hashes."""
     manifest = json.loads((payload_root / MANIFEST_NAME).read_text(encoding="utf-8"))
     on_disk = payload_files(payload_root) - {MANIFEST_NAME}
+    # Reject this state when set(manifest) != on_disk.
     if set(manifest) != on_disk:
         raise ExportError(f"Manifest does not match payload files: {sorted(set(manifest) ^ on_disk)}")
     for rel, digest in manifest.items():
+        # Reject this state when sha256(payload_root / rel) != digest.
         if sha256(payload_root / rel) != digest:
             raise ExportError(f"Hash mismatch after build: {rel}")
     return manifest
@@ -375,8 +409,10 @@ def verify_zip(zip_path: Path, payload_root: Path, package_name: str, manifest: 
     """Check that the archive holds exactly the payload files with manifest hashes."""
     expected = {f"{package_name}/{rel}": rel for rel in payload_files(payload_root)}
     with zipfile.ZipFile(zip_path) as zf:
+        # Reject this state when set(zf.namelist()) != set(expected).
         if set(zf.namelist()) != set(expected):
             raise ExportError("Zip archive does not match payload files.")
+        # Reject this state when zf.testzip() is not None.
         if zf.testzip() is not None:
             raise ExportError("Zip archive failed CRC check.")
         manifest_bytes = (payload_root / MANIFEST_NAME).read_bytes()
@@ -385,13 +421,16 @@ def verify_zip(zip_path: Path, payload_root: Path, package_name: str, manifest: 
             with zf.open(name) as f:
                 for chunk in iter(lambda: f.read(1024 * 1024), b""):
                     h.update(chunk)
+            # Choose the first expression when rel == MANIFEST_NAME; otherwise use the fallback.
             digest = hashlib.sha256(manifest_bytes).hexdigest() if rel == MANIFEST_NAME else manifest[rel]
+            # Reject this state when h.hexdigest() != digest.
             if h.hexdigest() != digest:
                 raise ExportError(f"Zip member hash mismatch: {name}")
 
 
 def write_release_index(release_dir: Path, release_id: str, payload_root: Path, zip_enabled: bool) -> None:
     """Write hashes outside the payload, avoiding a self-referential manifest."""
+    # Choose the first expression when zip_enabled; otherwise use the fallback.
     index = {
         "release_id": release_id,
         "payload_manifest": f"{payload_root.name}/{MANIFEST_NAME}",
@@ -404,15 +443,19 @@ def write_release_index(release_dir: Path, release_id: str, payload_root: Path, 
 def verify_release(release_dir: Path) -> None:
     """Verify a committed release and its external hash index."""
     index_path = release_dir / RELEASE_INDEX_NAME
+    # Reject this state when not index_path.is_file().
     if not index_path.is_file():
         raise ExportError(f"Release index missing: {index_path}")
     index = json.loads(index_path.read_text(encoding="utf-8"))
     payload_root = release_dir / str(index["payload_manifest"]).split("/", 1)[0]
     manifest = verify_payload(payload_root)
+    # Reject this state when the invalid compound condition is detected.
     if sha256(payload_root / MANIFEST_NAME) != index.get("payload_manifest_sha256"):
         raise ExportError("Release index manifest hash mismatch")
     zip_path = release_dir / f"{payload_root.name}.zip"
+    # Follow this branch when index.get('zip_sha256') is not None.
     if index.get("zip_sha256") is not None:
+        # Reject this state when not zip_path.is_file() or sha256(zip_path) != index['zip_sha256'].
         if not zip_path.is_file() or sha256(zip_path) != index["zip_sha256"]:
             raise ExportError("Release index zip hash mismatch")
         verify_zip(zip_path, payload_root, payload_root.name, manifest)
@@ -454,6 +497,7 @@ def publish_release(package_root: Path, release_id: str, build: Callable[[Path],
     release is fully built, verified and committed.
     """
     release_dir = package_root / release_id
+    # Reject this state when release_dir.exists() or release_dir.is_symlink().
     if release_dir.exists() or release_dir.is_symlink():
         raise ExportError(f"Release {release_id!r} already exists at {release_dir}; releases are immutable.")
 
@@ -462,6 +506,7 @@ def publish_release(package_root: Path, release_id: str, build: Callable[[Path],
     staging.mkdir()
     try:
         build(staging)
+        # Reject this state when release_dir.exists() or release_dir.is_symlink().
         if release_dir.exists() or release_dir.is_symlink():
             raise ExportError(f"Release {release_id!r} appeared during the build; refusing to replace it.")
         os.rename(staging, release_dir)
@@ -491,6 +536,7 @@ def main() -> int:
     parser.add_argument("--verify", type=Path, default=None, help="Verify an existing immutable release and exit")
     args = parser.parse_args()
 
+    # Follow this branch when args.verify is not None.
     if args.verify is not None:
         try:
             verify_release(args.verify.resolve())
@@ -500,11 +546,13 @@ def main() -> int:
         print(f"Release verified: {args.verify.resolve()}")
         return 0
 
+    # Follow this branch when args.config is None.
     if args.config is None:
         parser.error("--config is required unless --verify is used")
 
     project_root = args.project_root.resolve()
     config_path = args.config.resolve()
+    # Choose the first expression when args.run_dir; otherwise use the fallback.
     run_dir = args.run_dir.resolve() if args.run_dir else None
     try:
         cfg = load_config(config_path, project_root=project_root)
@@ -513,13 +561,16 @@ def main() -> int:
         return EXPORT_ERROR_EXIT_CODE
 
     export_cfg = cfg.get("paper_export")
+    # Follow this branch when export_cfg is None.
     if export_cfg is None:
         print("Export failed: config has no paper_export closure declaration.", file=sys.stderr)
         return EXPORT_ERROR_EXIT_CODE
+    # Reject this state when not export_cfg['enabled'].
     if not export_cfg["enabled"]:
         raise SystemExit("paper_export.enabled is false.")
 
     try:
+        # Choose the first expression when run_dir; otherwise use the fallback.
         run_id = run_dir.name if run_dir else "no_run"
         package_name = validate_name(
             str(export_cfg.get("package_name", cfg.get("experiment", {}).get("name", "paper_artifact"))),
@@ -531,6 +582,7 @@ def main() -> int:
         )
         validate_run_closure(cfg, run_dir)
 
+        # Choose the first expression when run_dir; otherwise use the fallback.
         variables = {
             "PROJECT_ROOT": str(project_root),
             "RUN_DIR": str(run_dir) if run_dir else "",
@@ -546,6 +598,7 @@ def main() -> int:
             payload_root.mkdir()
             build_payload(payload_root, cfg, project_root, run_dir, variables, package_name, release_id)
             manifest = verify_payload(payload_root)
+            # Follow this branch when not args.no_zip.
             if not args.no_zip:
                 zip_path = staging / f"{package_name}.zip"
                 write_zip(payload_root, zip_path, package_name)
@@ -560,11 +613,13 @@ def main() -> int:
         return EXPORT_ERROR_EXIT_CODE
 
     print(f"Paper artifact: {release_dir / package_name}")
+    # Follow this branch when not args.no_zip.
     if not args.no_zip:
         print(f"ZIP: {release_dir / (package_name + '.zip')}")
     print(f"{LATEST_POINTER} -> {release_id}")
     return 0
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

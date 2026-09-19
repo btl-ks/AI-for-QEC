@@ -57,7 +57,9 @@ def rbm_training_summary(
     history: list[dict[str, float]], *, selected_epoch: int | None, training_time_seconds: float, dataset_dir: str | Path,
 ) -> dict[str, Any]:
     """Summarize per-epoch reconstruction history and the selected checkpoint."""
+    # Keep only values that satisfy the compound filter.
     selected = next((row for row in history if selected_epoch is not None and int(row["epoch"]) == int(selected_epoch)), None)
+    # Reject this state when selected is None.
     if selected is None:
         raise ValueError("No epoch produced a finite validation reconstruction BCE; no best checkpoint exists")
     final = history[-1]
@@ -125,6 +127,7 @@ def run_rbm_training(config: dict[str, Any], project_root: str | Path, run_dir: 
             "validation_reconstruction_bce": model.reconstruction_bce(validation_visible),
         }
         history.append(epoch_metrics)
+        # Follow this branch when epoch_metrics['validation_reconstruction_bce'] < best_validation.
         if epoch_metrics["validation_reconstruction_bce"] < best_validation:
             best_validation, best_epoch = epoch_metrics["validation_reconstruction_bce"], epoch
             save_rbm_checkpoint(

@@ -72,5 +72,6 @@ class PipelineSmokeTest(unittest.TestCase):
             self.assertEqual(manifest["steps"][0]["status"], "failed")
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     unittest.main()

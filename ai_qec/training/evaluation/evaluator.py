@@ -34,6 +34,7 @@ def evaluate_checkpoint(
         "code_version": code_version(project_root),
     }
     for key, value in expected.items():
+        # Reject this state when metadata.get(key) != value.
         if metadata.get(key) != value:
             raise ValueError(f"Checkpoint identity mismatch for {key}")
     pred = model.predict(dataset.features)

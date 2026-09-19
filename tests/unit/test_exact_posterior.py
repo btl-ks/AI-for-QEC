@@ -32,11 +32,14 @@ def gf2_rank(matrix: np.ndarray) -> int:
     reduced = np.asarray(matrix, dtype=np.uint8).copy() % 2
     rank = 0
     for column in range(reduced.shape[1]):
+        # Keep only values that satisfy reduced[i, column].
         source = next((i for i in range(rank, len(reduced)) if reduced[i, column]), None)
+        # Skip the current iteration when source is None.
         if source is None:
             continue
         reduced[[rank, source]] = reduced[[source, rank]]
         for i in range(len(reduced)):
+            # Follow this branch when i != rank and reduced[i, column].
             if i != rank and reduced[i, column]:
                 reduced[i] ^= reduced[rank]
         rank += 1
@@ -55,6 +58,7 @@ def brute_force_class_weights(code: ToricCode, error: np.ndarray, p_error: float
     weights = [Fraction(0)] * 4
     for bits in itertools.product((0, 1), repeat=code.num_data_qubits):
         recovery = np.array(bits, dtype=np.uint8)
+        # Skip the current iteration when not np.array_equal(code.syndrome(recovery), target).
         if not np.array_equal(code.syndrome(recovery), target):
             continue
         support = int(recovery.sum())

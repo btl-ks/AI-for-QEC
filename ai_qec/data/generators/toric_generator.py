@@ -44,12 +44,15 @@ def sample_toric_splits(
         while cursor < n_samples:
             current = min(batch_size, n_samples - cursor)
             batch = backend.sample_batch(current, rng)
+            # Reject this state when set(batch) != {'physical_error', 'syndrome'}.
             if set(batch) != {"physical_error", "syndrome"}:
                 raise ValueError(f"Toric backend batch keys mismatch: {sorted(batch)}")
             physical_error = np.asarray(batch["physical_error"], dtype=np.uint8)
             syndrome = np.asarray(batch["syndrome"], dtype=np.uint8)
+            # Reject this state when the invalid compound condition is detected.
             if physical_error.shape != (current, code.num_data_qubits) or syndrome.shape != (current, code.num_syndrome_bits):
                 raise ValueError("Toric backend batch shape mismatch")
+            # Reject this state when not np.array_equal(code.syndrome(physical_error), syndrome).
             if not np.array_equal(code.syndrome(physical_error), syndrome):
                 raise ValueError("Toric backend returned inconsistent syndrome data")
             errors[cursor : cursor + current] = physical_error
@@ -70,6 +73,7 @@ def sample_toric_splits(
 def generate_toric_dataset(config: dict[str, Any], project_root: str | Path) -> dict[str, Any]:
     """Create or validate a non-empty immutable dataset from the real toric model."""
     output_path = data_output_dir(config, project_root)
+    # Follow this branch when output_path.exists() or output_path.is_symlink().
     if output_path.exists() or output_path.is_symlink():
         manifest = validate_toric_dataset(output_path, config)
         manifest["reused_immutable"] = True

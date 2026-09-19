@@ -27,6 +27,7 @@ def find_project_root(start: Path | None = None) -> Path:
     location = (start or Path.cwd()).resolve()
     source_root = Path(__file__).resolve().parents[2]
     for candidate in (location, *location.parents, source_root):
+        # Return early when the compound condition is satisfied.
         if (candidate / "ai_qec" / "__init__.py").is_file() and (candidate / "paper" / "srcs").is_dir():
             return candidate
     raise RuntimeError("请从本项目目录启动 Notebook，或先以 editable 模式安装项目。")
@@ -35,17 +36,21 @@ def find_project_root(start: Path | None = None) -> Path:
 def prepare_run_environment(config: dict[str, Any]) -> tuple[str, int]:
     """Check the requested execution environment and return device and seed."""
     expected_env = config.get("execution", {}).get("conda_env")
+    # Reject this state when expected_env and Path(sys.prefix).name != expected_env.
     if expected_env and Path(sys.prefix).name != expected_env:
         raise RuntimeError(f"请选择 {expected_env!r} 内核；当前解释器前缀为 {sys.prefix}")
 
     device = config.get("training", {}).get("device", "cpu")
+    # Reject this state when device not in ('cpu', 'cuda').
     if device not in ("cpu", "cuda"):
         raise ValueError("training.device 必须是 'cpu' 或 'cuda'")
+    # Follow this branch when device == 'cuda'.
     if device == "cuda":
         try:
             import torch
         except ImportError as exc:
             raise RuntimeError("training.device='cuda' 要求安装 PyTorch") from exc
+        # Reject this state when not torch.cuda.is_available().
         if not torch.cuda.is_available():
             raise RuntimeError("training.device='cuda' 要求 PyTorch CUDA 设备可用")
 

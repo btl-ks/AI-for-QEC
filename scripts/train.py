@@ -28,10 +28,12 @@ def main() -> int:
     from ai_qec.utils.config import load_config
 
     config = load_config(args.config, project_root=project_root)
+    # Follow this branch when config['training']['trainer'] == 'rbm_cd'.
     if config["training"]["trainer"] == "rbm_cd":
         from ai_qec.training.trainers.rbm import train_rbm
         metrics = train_rbm(config=config, project_root=project_root, run_dir=args.run_dir)
         checkpoint = args.run_dir / "checkpoints" / "best.pt"
+    # Handle all remaining cases.
     else:
         metrics = train_multitask(config=config, project_root=project_root, run_dir=args.run_dir)
         checkpoint = args.run_dir / "checkpoints" / "best.npz"
@@ -41,5 +43,6 @@ def main() -> int:
     return 0
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

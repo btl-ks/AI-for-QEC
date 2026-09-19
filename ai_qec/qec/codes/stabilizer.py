@@ -31,8 +31,10 @@ from ai_qec.qec.codes.base import QECCode
 def binary_vectors(value: np.ndarray, width: int, label: str) -> np.ndarray:
     """Validate one or more binary row vectors of the given width."""
     array = np.asarray(value, dtype=np.uint8)
+    # Reject this state when array.ndim < 1 or array.shape[-1] != width.
     if array.ndim < 1 or array.shape[-1] != width:
         raise ValueError(f"{label} must end with dimension {width}, got {array.shape}")
+    # Reject this state when not np.isin(array, (0, 1)).all().
     if not np.isin(array, (0, 1)).all():
         raise ValueError(f"{label} must be binary")
     return array
@@ -78,6 +80,7 @@ class StabilizerCode(QECCode):
         The all-zero class is the trivial one, in which recovery succeeds.
         """
         cycle = binary_vectors(cycle, self.num_data_qubits, "cycle")
+        # Reject this state when require_closed and np.any(self.syndrome(cycle)).
         if require_closed and np.any(self.syndrome(cycle)):
             raise ValueError("Logical class requires a closed cycle")
         return gf2_matvec(cycle, self.logical_readout_matrix())
@@ -86,8 +89,10 @@ class StabilizerCode(QECCode):
         """Return whether a syndrome-compatible recovery leaves a non-trivial logical class."""
         error = binary_vectors(error, self.num_data_qubits, "error")
         recovery = binary_vectors(recovery, self.num_data_qubits, "recovery")
+        # Reject this state when error.shape != recovery.shape.
         if error.shape != recovery.shape:
             raise ValueError("error and recovery shapes must match")
+        # Reject this state when not np.array_equal(self.syndrome(error), self.syndrome(recovery)).
         if not np.array_equal(self.syndrome(error), self.syndrome(recovery)):
             raise ValueError("Recovery syndrome does not match the physical error")
         return np.any(self.logical_class(error ^ recovery), axis=-1)
@@ -107,12 +112,16 @@ class StabilizerCode(QECCode):
         Callers pass a generating set; if any generator reads a non-zero class, the
         readout mixes stabilizers into logical information and every class is wrong.
         """
+        # Follow this branch when stabilizers is None.
         if stabilizers is None:
             stabilizers = self.trivial_cycle_generators()
         stabilizers = binary_vectors(stabilizers, self.num_data_qubits, "stabilizers")
+        # Return early when not len(stabilizers).
         if not len(stabilizers):
             return
+        # Reject this state when np.any(self.syndrome(stabilizers)).
         if np.any(self.syndrome(stabilizers)):
             raise ValueError("stabilizers must be closed chains")
+        # Reject this state when np.any(self.logical_class(stabilizers)).
         if np.any(self.logical_class(stabilizers)):
             raise ValueError("logical readout matrix does not annihilate the stabilizer group")

@@ -41,16 +41,21 @@ def resolve_dataset(
     is committed atomically and verified, so failed generation leaves no dataset.
     """
     dataset_dir = data_output_dir(config, project_root)
+    # Follow this branch when source_run is not None.
     if source_run is not None:
         dataset_dir, manifest = validate_source_dataset(source_run, config)
         step["reused_immutable"] = True
         step["source_run"] = source_run.run_id
+    # Handle all remaining cases.
     else:
+        # Follow this branch when dataset_dir.exists().
         if dataset_dir.exists():
             step["reused_immutable"] = True
+        # Handle all remaining cases.
         else:
             with staged_dataset_dir(dataset_dir) as staging:
                 files, code, circuit = sample_toric_splits(config, staging)
+                # Reject this state when not files.
                 if not files:
                     raise ValueError("sampler produced no dataset splits")
                 write_json(
@@ -65,6 +70,7 @@ def resolve_dataset(
     # the manifest, and a pending ``outputs`` entry is still a Path at that point.
     if source_run is None:
         run.refresh_dataset()
+    # Handle all remaining cases.
     else:
         link_source_dataset(run, source_run)
     step["outputs"].append(dataset_dir / "dataset_manifest.json")

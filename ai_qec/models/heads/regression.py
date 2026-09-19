@@ -18,6 +18,7 @@ def rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 def r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """Compute coefficient of determination with a constant-target guard."""
     total = float(np.sum((y_true - np.mean(y_true)) ** 2))
+    # Return early when total <= 1e-15.
     if total <= 1e-15:
         return 0.0
     residual = float(np.sum((y_true - y_pred) ** 2))

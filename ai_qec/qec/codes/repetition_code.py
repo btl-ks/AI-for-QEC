@@ -23,6 +23,7 @@ class RepetitionCode(StabilizerCode):
     distance: int = 5
 
     def __post_init__(self) -> None:
+        # Reject this state when self.distance < 2.
         if self.distance < 2:
             raise ValueError("Repetition-code distance must be at least 2")
 

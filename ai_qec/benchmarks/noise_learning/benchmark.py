@@ -12,6 +12,7 @@ def mae(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 def r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """Compute coefficient of determination with a constant-target guard."""
     total = float(np.sum((y_true - np.mean(y_true)) ** 2))
+    # Return early when total <= 1e-15.
     if total <= 1e-15:
         return 0.0
     residual = float(np.sum((y_true - y_pred) ** 2))
@@ -20,6 +21,7 @@ def r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 def _safe_corr(a: np.ndarray, b: np.ndarray) -> float:
     """Compute Pearson correlation, returning 0 when variance vanishes."""
+    # Return early when np.std(a) < 1e-12 or np.std(b) < 1e-12.
     if np.std(a) < 1e-12 or np.std(b) < 1e-12:
         return 0.0
     return float(np.corrcoef(a, b)[0, 1])

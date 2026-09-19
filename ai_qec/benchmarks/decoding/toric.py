@@ -19,6 +19,7 @@ from ai_qec.utils.config import write_json
 
 def wilson_interval(failures: int, total: int, *, z: float = 1.96) -> tuple[float, float]:
     """Return a 95% Wilson confidence interval for a Bernoulli rate."""
+    # Reject this state when total < 1.
     if total < 1:
         raise ValueError("Wilson interval needs at least one sample")
     rate = failures / total
@@ -41,6 +42,7 @@ def logical_class_counts(code: StabilizerCode, errors: np.ndarray, recoveries: n
     reports ``0`` and ``1`` instead.
     """
     labels = logical_class_labels(code)
+    # Return early when not len(errors).
     if not len(errors):
         return dict.fromkeys(labels, 0)
     values = code.logical_class(errors ^ recoveries)
@@ -61,10 +63,12 @@ def mwpm_reference_recoveries(code: ToricCode, syndromes: np.ndarray) -> tuple[n
     recoveries = []
     fallback_count = 0
     for syndrome in np.asarray(syndromes, dtype=np.uint8):
+        # Follow this branch when int(syndrome.sum()) <= exact.max_exact_defects.
         if int(syndrome.sum()) <= exact.max_exact_defects:
             recoveries.append(exact.decode(syndrome))
             continue
         fallback_count += 1
+        # Follow this branch when fallback is None.
         if fallback is None:
             from ai_qec.models.decoders.classical.pymatching_adapter import PyMatchingToricDecoder
 
@@ -89,10 +93,12 @@ def mwpm_tie_sensitivity(code: ToricCode, errors: np.ndarray, syndromes: np.ndar
     compared = identical = same_homology = same_outcome = 0
     exact_failures = matching_failures = 0
     for error, syndrome in zip(errors, np.asarray(syndromes, dtype=np.uint8), strict=True):
+        # Skip the current iteration when int(syndrome.sum()) > exact.max_exact_defects.
         if int(syndrome.sum()) > exact.max_exact_defects:
             continue
         exact_recovery = exact.decode(syndrome)
         matching_recovery = matching.decode(DecodeRequest(syndrome)).recovery
+        # Reject this state when int(exact_recovery.sum()) != int(matching_recovery.sum()).
         if int(exact_recovery.sum()) != int(matching_recovery.sum()):
             raise RuntimeError("the two MWPM implementations disagree on the minimum weight")
         compared += 1
@@ -105,6 +111,7 @@ def mwpm_tie_sensitivity(code: ToricCode, errors: np.ndarray, syndromes: np.ndar
         exact_failures += int(exact_failed)
         matching_failures += int(matching_failed)
         same_outcome += int(exact_failed == matching_failed)
+    # Reject this state when not compared.
     if not compared:
         raise ValueError("no shot was within the exact decoder's defect limit")
     return {
@@ -169,7 +176,9 @@ def write_benchmark_outputs(run_dir: str | Path, report: dict[str, Any], metrics
     """Merge benchmark metrics into ``metrics.json`` and write ``benchmark_report.json``."""
     run_path = Path(run_dir)
     metrics_path = run_path / "metrics.json"
+    # Choose the first expression when metrics_path.is_file(); otherwise use the fallback.
     existing = json.loads(metrics_path.read_text(encoding="utf-8")) if metrics_path.is_file() else {}
+    # Reject this state when not isinstance(existing, dict).
     if not isinstance(existing, dict):
         raise ValueError("metrics.json must contain an object")
     existing.setdefault("metrics", {}).update(metrics)
@@ -183,6 +192,7 @@ def benchmark_toric_decoders(config: dict[str, Any], run_dir: str | Path) -> dic
     """Measure logical failure of saved RBM outputs against exact small-L MWPM."""
     run_path = Path(run_dir)
     prediction_path = run_path / "predictions" / "toric_rbm_eval.npz"
+    # Reject this state when not prediction_path.is_file().
     if not prediction_path.is_file():
         raise FileNotFoundError(prediction_path)
     with np.load(prediction_path, allow_pickle=False) as payload:
@@ -190,6 +200,7 @@ def benchmark_toric_decoders(config: dict[str, Any], run_dir: str | Path) -> dic
             "split", "dataset_id", "lattice_size", "p_error", "parallel_chains", "device", "physical_error", "syndrome", "recovery",
             "recovery_valid", "timed_out", "gibbs_steps", "decoder_latency_ms", "logical_failure",
         }
+        # Reject this state when set(payload.files) != required.
         if set(payload.files) != required:
             raise ValueError("Toric prediction schema mismatch")
         errors = payload["physical_error"].astype(np.uint8)
@@ -205,12 +216,16 @@ def benchmark_toric_decoders(config: dict[str, Any], run_dir: str | Path) -> dic
         split = str(payload["split"].item())
 
     code = ToricCode(distance=lattice_size)
+    # Reject this state when the invalid compound condition is detected.
     if parallel_chains != int(config["training"]["decoder"].get("parallel_chains", 1)) or device != config["training"].get("device", "cpu"):
         raise ValueError("Toric prediction decoder configuration mismatch")
+    # Reject this state when the invalid compound condition is detected.
     if not len(errors) or errors.shape != rbm_recoveries.shape or not np.array_equal(code.syndrome(errors), syndromes):
         raise ValueError("Toric predictions are inconsistent with the code")
+    # Reject this state when the invalid compound condition is detected.
     if decoder_latency_ms.shape != (len(errors),) or not np.isfinite(decoder_latency_ms).all() or np.any(decoder_latency_ms < 0):
         raise ValueError("Toric decoder latency data is invalid")
+    # Reject this state when the invalid compound condition is detected.
     if np.any(rbm_valid) and not np.array_equal(code.syndrome(rbm_recoveries[rbm_valid]), syndromes[rbm_valid]):
         raise ValueError("RBM prediction marked valid does not match its syndrome")
     mwpm_recoveries, max_exact_defects, mwpm_fallback_shots = mwpm_reference_recoveries(code, syndromes)

@@ -35,6 +35,7 @@ def _git(project_root: Path, *args: str) -> bytes | None:
 
 def _text(value: bytes | None) -> str | None:
     """Decode one-line git output."""
+    # Choose the first expression when value is None; otherwise use the fallback.
     return None if value is None else value.decode("utf-8", "replace").strip()
 
 
@@ -47,17 +48,21 @@ def git_diff(project_root: str | Path) -> tuple[bytes, list[str]] | None:
     returned as the second element.
     """
     top = _text(_git(Path(project_root), "rev-parse", "--show-toplevel"))
+    # Return early when top is None.
     if top is None:
         return None
     root = Path(top)
     tracked = _git(root, "diff", "--binary", "HEAD")
     untracked = _git(root, "ls-files", "--others", "--exclude-standard", "-z")
+    # Return early when tracked is None or untracked is None.
     if tracked is None or untracked is None:
         return None
 
     parts = [tracked]
     skipped: list[str] = []
+    # Keep only values that satisfy raw.
     for name in sorted(os.fsdecode(raw) for raw in untracked.split(b"\0") if raw):
+        # Follow this branch when (root / name).lstat().st_size > MAX_UNTRACKED_PATCH_BYTES.
         if (root / name).lstat().st_size > MAX_UNTRACKED_PATCH_BYTES:
             skipped.append(name)
             continue
@@ -67,6 +72,7 @@ def git_diff(project_root: str | Path) -> tuple[bytes, list[str]] | None:
             cwd=root,
             capture_output=True,
         )
+        # Return early when proc.returncode not in (0, 1).
         if proc.returncode not in (0, 1):
             return None
         parts.append(proc.stdout)
@@ -82,17 +88,25 @@ def git_state(project_root: str | Path) -> dict[str, Any]:
     """
     root = Path(project_root)
     inside = _git(root, "rev-parse", "--is-inside-work-tree")
+    # Return early when inside is None or inside.strip() != b'true'.
     if inside is None or inside.strip() != b"true":
         return {"available": False}
 
     commit = _git(root, "rev-parse", "--verify", "HEAD")
+    # Choose the first expression when commit; otherwise use the fallback.
     branch = _git(root, "rev-parse", "--abbrev-ref", "HEAD") if commit else None
     status = _git(root, "status", "--porcelain=v1", "--untracked-files=normal")
+    # Choose the first expression when status is None; otherwise use the fallback.
+    # Keep only values that satisfy line.
     dirty_paths = None if status is None else [
         line for line in status.decode("utf-8", "replace").splitlines() if line
     ]
+    # Choose the first expression when commit; otherwise use the fallback.
     patch = git_diff(root) if commit else None
 
+    # Choose the first expression when dirty_paths is None; otherwise use the fallback.
+    # Choose the first expression when patch and patch[0]; otherwise use the fallback.
+    # Choose the first expression when patch; otherwise use the fallback.
     return {
         "available": True,
         "commit": _text(commit),
@@ -107,15 +121,20 @@ def git_state(project_root: str | Path) -> dict[str, Any]:
 
 def clean_worktree_error(git: dict[str, Any], max_listed: int = 10) -> str | None:
     """Explain why a working tree cannot anchor a formal run, or return None if clean."""
+    # Return early when not git.get('available').
     if not git.get("available"):
         return "project root is not inside a git working tree"
+    # Return early when git.get('commit') is None.
     if git.get("commit") is None:
         return "git repository has no commits"
+    # Return early when git.get('dirty') is None.
     if git.get("dirty") is None:
         return "git status could not be read"
+    # Follow this branch when git['dirty'].
     if git["dirty"]:
         paths = [path.strip() for path in git.get("dirty_paths") or []]
         listed = "; ".join(paths[:max_listed])
+        # Choose the first expression when len(paths) > max_listed; otherwise use the fallback.
         more = f"; ... (+{len(paths) - max_listed} more)" if len(paths) > max_listed else ""
         return f"working tree has uncommitted changes: {listed}{more}"
     return None
@@ -142,6 +161,7 @@ def installed_distributions() -> dict[str, str]:
     found: dict[str, str] = {}
     for dist in importlib.metadata.distributions():
         name = dist.metadata["Name"]
+        # Follow this branch when name.
         if name:
             found[name] = dist.version
     return dict(sorted(found.items(), key=lambda item: item[0].lower()))
@@ -193,7 +213,9 @@ def interpreter_environment(
             check=True,
         )
     except (OSError, subprocess.CalledProcessError) as exc:
+        # Choose the first expression when isinstance(exc, subprocess.CalledProcessError) and exc.stderr; otherwise use the fallback.
         stderr = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) and exc.stderr else ""
+        # Choose the first expression when stderr; otherwise use the fallback.
         detail = f": {stderr}" if stderr else ""
         raise RuntimeError(f"could not inspect interpreter {executable}{detail}") from exc
     try:
@@ -201,8 +223,10 @@ def interpreter_environment(
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"interpreter {executable} did not return a valid environment snapshot") from exc
     required = {"python", "executable", "prefix", "platform", "packages", "distributions"}
+    # Reject this state when not isinstance(snapshot, dict) or set(snapshot) != required.
     if not isinstance(snapshot, dict) or set(snapshot) != required:
         raise RuntimeError(f"interpreter {executable} returned an incomplete environment snapshot")
+    # Reject this state when the invalid compound condition is detected.
     if not isinstance(snapshot["packages"], dict) or not isinstance(snapshot["distributions"], dict):
         raise RuntimeError(f"interpreter {executable} returned malformed package metadata")
     return snapshot
@@ -217,6 +241,7 @@ def dataset_reference(config: dict[str, Any], project_root: str | Path) -> dict[
     dataset_dir = data_output_dir(config, project_root)
     manifest_path = dataset_dir / "dataset_manifest.json"
     reference: dict[str, Any] = {"dir": str(dataset_dir), "manifest": None}
+    # Return early when not manifest_path.exists().
     if not manifest_path.exists():
         return reference
 

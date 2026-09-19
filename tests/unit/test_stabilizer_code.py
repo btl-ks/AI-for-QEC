@@ -9,6 +9,7 @@ import unittest
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# Follow this branch when str(PROJECT_ROOT) not in sys.path.
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -119,5 +120,6 @@ class DerivedQuantitiesAgree(unittest.TestCase):
             code.logical_failure(error[None, :], recovery[None, :])
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     unittest.main()

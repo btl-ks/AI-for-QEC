@@ -61,13 +61,17 @@ class RunRecord:
     ) -> "RunRecord":
         """Create a run from a config file or an inline notebook config, saving a YAML snapshot."""
         root = Path(project_root).resolve()
+        # Choose the first expression when config_path is not None; otherwise use the fallback.
         config_source = str(Path(config_path).resolve()) if config_path is not None else execution.get("notebook")
+        # Reject this state when not isinstance(config_source, str) or not config_source.
         if not isinstance(config_source, str) or not config_source:
             raise ValueError("Inline configuration requires execution.notebook as its source")
         git = git_state(root)
         repro = config["reproducibility"]
+        # Follow this branch when repro['require_clean_worktree'].
         if repro["require_clean_worktree"]:
             reason = clean_worktree_error(git)
+            # Reject this state when reason.
             if reason:
                 raise RuntimeError(f"Refusing to run: {reason}")
 
@@ -77,24 +81,31 @@ class RunRecord:
         run_dir.mkdir(parents=True)
         for name in ("checkpoints", "predictions"):
             (run_dir / name).mkdir()
+        # Follow this branch when config_path is None.
         if config_path is None:
             (run_dir / "config.yaml").write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        # Handle all remaining cases.
         else:
             shutil.copy2(config_path, run_dir / "config.yaml")
 
         environment: dict[str, Any] = {
             "python": sys.version, "executable": sys.executable, "prefix": sys.prefix, "platform": platform.platform(),
         }
+        # Follow this branch when repro['save_environment'].
         if repro["save_environment"]:
             environment["packages"] = package_versions()
             environment["distributions_file"] = "environment.json"
             write_json(run_dir / "environment.json", installed_distributions())
+        # Follow this branch when repro['save_git_commit'] and git.get('dirty').
         if repro["save_git_commit"] and git.get("dirty"):
             patch = git_diff(root)
+            # Follow this branch when patch and patch[0].
             if patch and patch[0]:
                 (run_dir / "git_diff.patch").write_bytes(patch[0])
                 git["patch_file"] = "git_diff.patch"
 
+        # Choose the first expression when repro['save_git_commit']; otherwise use the fallback.
+        # Choose the first expression when config['data']['generator'] == 'toric_code_capacity'; otherwise use the fallback.
         manifest = {
             "schema_version": 1, "run_id": run_id, "experiment": config["experiment"]["name"],
             "config": config_source, "config_hash": config_hash(config), "project_root": str(root),
@@ -129,6 +140,7 @@ class RunRecord:
             yield record
             artifacts = []
             for path in map(Path, record.pop("outputs")):
+                # Reject this state when not path.is_file() or path.stat().st_size == 0.
                 if not path.is_file() or path.stat().st_size == 0:
                     raise RuntimeError(f"Stage {step_id} did not create a non-empty artifact: {path}")
                 artifacts.append({"path": str(path), "sha256": _sha256(path)})
@@ -148,6 +160,7 @@ class RunRecord:
         self.save()
 
     def finish(self) -> None:
+        # Follow this branch when self.manifest['status'] == 'running'.
         if self.manifest["status"] == "running":
             self.manifest["status"] = "success"
         self.manifest["finished_at"] = utc_now()
@@ -173,6 +186,7 @@ def start_notebook_run(
     value is read from the merged config below, so nothing else can go stale.
     """
     parameters = dict(experiment_config)
+    # Reject this state when the invalid compound condition is detected.
     if build_code(parameters) != code or build_noise_model(parameters) != noise:
         raise RuntimeError("实验参数已更改；请重新运行实验配置单元格以重建 code 和 noise")
 

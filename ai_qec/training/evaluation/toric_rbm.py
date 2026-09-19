@@ -48,6 +48,7 @@ class DecodingRecord:
     """
 
     def __init__(self, n_samples: int, num_data_qubits: int) -> None:
+        # Reject this state when n_samples < 1 or num_data_qubits < 1.
         if n_samples < 1 or num_data_qubits < 1:
             raise ValueError("n_samples and num_data_qubits must be positive")
         self.recovery = np.zeros((n_samples, num_data_qubits), dtype=np.uint8)
@@ -64,9 +65,11 @@ class DecodingRecord:
         """Record one shot; ``recovery=None`` is a timeout and stays a logical failure."""
         self.gibbs_steps[index] = steps
         self.decoder_latency_ms[index] = latency_ms
+        # Follow this branch when recovery is None.
         if recovery is None:
             self.timed_out[index] = 1
             return
+        # Reject this state when failed is None.
         if failed is None:
             raise ValueError("a decoded shot needs its logical-failure outcome")
         self.recovery[index] = recovery
@@ -141,6 +144,7 @@ def evaluate_toric_rbm(
         "code_version": code_version(root),
     }
     for key, value in expected.items():
+        # Reject this state when metadata.get(key) != value.
         if metadata.get(key) != value:
             raise ValueError(f"Checkpoint identity mismatch for {key}")
 
@@ -165,6 +169,7 @@ def evaluate_toric_rbm(
         result = decoder.decode(DecodeRequest(syndrome, dataset.p_error), rng=decoding_rng(config, index))
         decoder_latency_ms[index] = (time.perf_counter_ns() - started) / 1e6
         gibbs_steps[index] = result.steps
+        # Follow this branch when result.recovery is None.
         if result.recovery is None:
             timed_out[index] = 1
             continue

@@ -16,6 +16,7 @@ class JointErrorSyndromeRBM(nn.Module):
 
     def __init__(self, *, error_units: int, syndrome_units: int, hidden_units: int, init_width: float, seed: int) -> None:
         super().__init__()
+        # Reject this state when the invalid compound condition is detected.
         if min(error_units, syndrome_units, hidden_units) < 1 or init_width <= 0:
             raise ValueError("RBM widths and init_width must be positive")
         self.error_units = int(error_units)
@@ -29,8 +30,10 @@ class JointErrorSyndromeRBM(nn.Module):
 
     def _visible(self, visible: np.ndarray | torch.Tensor) -> torch.Tensor:
         values = torch.as_tensor(visible, dtype=self.weights.dtype, device=self.weights.device)
+        # Reject this state when values.ndim != 2 or values.shape[1] != self.visible_units.
         if values.ndim != 2 or values.shape[1] != self.visible_units:
             raise ValueError(f"visible must have shape (n, {self.visible_units})")
+        # Reject this state when not torch.all((values == 0) | (values == 1)).
         if not torch.all((values == 0) | (values == 1)):
             raise ValueError("RBM visible states must be binary")
         return values
@@ -43,6 +46,7 @@ class JointErrorSyndromeRBM(nn.Module):
         return torch.sigmoid(visible @ self.weights + self.hidden_bias)
 
     def visible_probabilities(self, hidden: torch.Tensor) -> torch.Tensor:
+        # Reject this state when hidden.ndim != 2 or hidden.shape[1] != self.hidden_units.
         if hidden.ndim != 2 or hidden.shape[1] != self.hidden_units:
             raise ValueError("hidden has an incompatible shape")
         return torch.sigmoid(hidden @ self.weights.T + self.visible_bias)
@@ -81,16 +85,21 @@ class JointErrorSyndromeRBM(nn.Module):
         binary check; ``sync=False`` returns the reconstruction BCE as a detached device tensor
         instead of a float.  Neither option changes the update or the random stream.
         """
+        # Reject this state when cd_steps < 1.
         if cd_steps < 1:
             raise ValueError("cd_steps must be positive")
+        # Follow this branch when validated.
         if validated:
+            # Reject this state when the invalid compound condition is detected.
             if not (isinstance(visible, torch.Tensor) and visible.device == self.weights.device
                     and visible.dtype == self.weights.dtype and visible.ndim == 2
                     and visible.shape[1] == self.visible_units):
                 raise ValueError("validated=True requires a slice of to_visible_tensor()")
             positive = visible
+        # Handle all remaining cases.
         else:
             positive = self._visible(visible)
+        # Reject this state when len(positive) == 0.
         if len(positive) == 0:
             raise ValueError("cannot train on an empty minibatch")
         with torch.no_grad():
@@ -107,6 +116,7 @@ class JointErrorSyndromeRBM(nn.Module):
         (positive_energy - negative_energy).backward()
         optimizer.step()
         loss = self._reconstruction_bce_tensor(positive)
+        # Choose the first expression when sync; otherwise use the fallback.
         return float(loss.item()) if sync else loss
 
     @torch.no_grad()
@@ -121,6 +131,7 @@ class JointErrorSyndromeRBM(nn.Module):
     def save(self, path: str | Path, *, metadata: dict[str, Any], optimizer: torch.optim.Optimizer | None = None) -> None:
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
+        # Choose the first expression when optimizer is not None; otherwise use the fallback.
         torch.save({
             "schema_version": 1,
             "dimensions": (self.error_units, self.syndrome_units, self.hidden_units),
@@ -132,14 +143,17 @@ class JointErrorSyndromeRBM(nn.Module):
     @classmethod
     def load_with_metadata(cls, path: str | Path) -> tuple["JointErrorSyndromeRBM", dict[str, Any]]:
         payload = torch.load(path, map_location="cpu", weights_only=True)
+        # Reject this state when the invalid compound condition is detected.
         if set(payload) != {"schema_version", "dimensions", "model_state", "optimizer_state", "metadata"} or payload["schema_version"] != 1:
             raise ValueError("RBM checkpoint schema mismatch")
         dimensions = payload["dimensions"]
+        # Reject this state when the invalid compound condition is detected.
         if not isinstance(dimensions, (tuple, list)) or len(dimensions) != 3 or not all(isinstance(x, int) and x > 0 for x in dimensions):
             raise ValueError("RBM checkpoint dimensions are invalid")
         model = cls(error_units=dimensions[0], syndrome_units=dimensions[1], hidden_units=dimensions[2], init_width=0.01, seed=0)
         model.load_state_dict(payload["model_state"], strict=True)
         metadata = payload["metadata"]
+        # Reject this state when not isinstance(metadata, dict).
         if not isinstance(metadata, dict):
             raise ValueError("RBM checkpoint metadata must be an object")
         model.eval()

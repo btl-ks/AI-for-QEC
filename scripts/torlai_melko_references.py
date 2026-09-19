@@ -53,6 +53,7 @@ def main() -> int:
 
     def predictions(run_id: str) -> dict[str, np.ndarray]:
         path = runs_root / run_id / "predictions" / "toric_rbm_eval.npz"
+        # Reject this state when not path.is_file().
         if not path.is_file():
             raise FileNotFoundError(path)
         with np.load(path, allow_pickle=False) as payload:
@@ -73,6 +74,7 @@ def main() -> int:
             flush=True,
         )
 
+    # Follow this branch when not args.skip_mwpm_ties.
     if not args.skip_mwpm_ties:
         code_l6 = ToricCode(distance=6)
         summary["mwpm_tie_sensitivity_L6"] = []
@@ -92,5 +94,6 @@ def main() -> int:
     return 0
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

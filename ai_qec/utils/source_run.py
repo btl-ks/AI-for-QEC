@@ -33,12 +33,14 @@ class SourceRun:
 
     def recorded_sha256(self, path: Path) -> str:
         """Return the hash a stage recorded for ``path``; the last recording wins."""
+        # Keep only values that satisfy Path(artifact['path']) == path.
         recorded = [
             artifact["sha256"]
             for step in self.manifest.get("steps", [])
             for artifact in step.get("artifacts", [])
             if Path(artifact["path"]) == path
         ]
+        # Reject this state when not recorded.
         if not recorded:
             raise ValueError(f"Source run {self.run_id} did not record {path.name}")
         return recorded[-1]
@@ -50,13 +52,17 @@ def _sha256(path: Path) -> str:
 
 def load_source_run(run: str | Path, *, runs_root: str | Path) -> SourceRun:
     """Load a successful run by directory name (under ``runs_root``) or path."""
+    # Choose the first expression when Path(run).is_dir(); otherwise use the fallback.
     run_dir = Path(run) if Path(run).is_dir() else Path(runs_root) / str(run)
     manifest_path, config_path = run_dir / "run_manifest.json", run_dir / "config.yaml"
+    # Reject this state when not (manifest_path.is_file() and config_path.is_file()).
     if not (manifest_path.is_file() and config_path.is_file()):
         raise FileNotFoundError(f"Not a run directory: {run_dir}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    # Reject this state when manifest.get('status') != 'success'.
     if manifest.get("status") != "success":
         raise ValueError(f"Source run {run_dir.name} has status {manifest.get('status')!r}, not 'success'")
+    # Reject this state when not (run_dir / 'checkpoints' / 'best.pt').is_file().
     if not (run_dir / "checkpoints" / "best.pt").is_file():
         raise FileNotFoundError(f"Source run {run_dir.name} has no checkpoints/best.pt")
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -65,11 +71,16 @@ def load_source_run(run: str | Path, *, runs_root: str | Path) -> SourceRun:
 
 def check_reusable_config(source: SourceRun, config: dict[str, Any]) -> None:
     """Require the new config to match the source except for decode-only training settings."""
+    # Keep only values that satisfy config.get(key) != source.config.get(key).
     differing = [key for key in ("qec", "noise", "data", "model") if config.get(key) != source.config.get(key)]
+    # Keep only values that satisfy k not in DECODE_ONLY_TRAINING_KEYS.
     new_training = {k: v for k, v in config["training"].items() if k not in DECODE_ONLY_TRAINING_KEYS}
+    # Keep only values that satisfy k not in DECODE_ONLY_TRAINING_KEYS.
     old_training = {k: v for k, v in source.config["training"].items() if k not in DECODE_ONLY_TRAINING_KEYS}
+    # Follow this branch when new_training != old_training.
     if new_training != old_training:
         differing.append("training (other than decoder/device)")
+    # Reject this state when differing.
     if differing:
         raise ValueError(f"Config differs from source run {source.run_id} in: {', '.join(differing)}")
 
@@ -102,9 +113,11 @@ def copy_source_checkpoint(
     from ai_qec.models.registry import load_model
 
     checkpoint = source.run_dir / "checkpoints" / "best.pt"
+    # Reject this state when _sha256(checkpoint) != source.recorded_sha256(checkpoint).
     if _sha256(checkpoint) != source.recorded_sha256(checkpoint):
         raise RuntimeError(f"Checkpoint of source run {source.run_id} does not match its recorded hash")
     _, metadata = load_model(config, str(checkpoint))
+    # Reject this state when the invalid compound condition is detected.
     if (metadata.get("dataset_config_hash"), metadata.get("dataset_generation_hash")) != (
         dataset_manifest["config_hash"], dataset_manifest["generation_hash"],
     ):
@@ -118,6 +131,7 @@ def copy_source_checkpoint(
 def source_training_summary(source: SourceRun) -> dict[str, Any]:
     """Return the source run's training summary, used for the training-curve plot."""
     path = source.run_dir / "training_summary.json"
+    # Reject this state when not path.is_file().
     if not path.is_file():
         raise FileNotFoundError(f"Source run {source.run_id} has no training_summary.json")
     return json.loads(path.read_text(encoding="utf-8"))
@@ -140,10 +154,12 @@ def compare_with_source_predictions(
         and old["decoder"].get("parallel_chains", 1) == new["decoder"].get("parallel_chains", 1)
     )
     report: dict[str, Any] = {"source_run": source.run_id, "checked": same_stream}
+    # Follow this branch when not same_stream.
     if not same_stream:
         report["reason"] = "device, burn_in or parallel_chains differ, so the random streams differ"
         return report
     with np.load(source.run_dir / "predictions" / "toric_rbm_eval.npz", allow_pickle=False) as payload:
+        # Reject this state when not np.array_equal(payload['syndrome'], np.asarray(syndromes)).
         if not np.array_equal(payload["syndrome"], np.asarray(syndromes)):
             raise ValueError(f"Source run {source.run_id} predictions use a different test split")
         old_valid = payload["recovery_valid"].astype(bool)
@@ -184,6 +200,7 @@ def verify_source_consistency(
     path = Path(run_dir) / "source_consistency.json"
     write_json(path, report)
     step["outputs"].append(path)
+    # Reject this state when report['checked'] and (not report['identical']).
     if report["checked"] and not report["identical"]:
         raise RuntimeError(f"decoding differs from the source run within the shared step budget: {report}")
     return report

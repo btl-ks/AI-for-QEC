@@ -21,6 +21,7 @@ class WeakCrosstalkNoise(NoiseModel):
         nuisance = noise_cfg.get("nuisance", {})
 
         self.target_values = np.asarray(target.get("values", [0.0]), dtype=np.float64)
+        # Reject this state when self.target_values.ndim != 1 or self.target_values.size == 0.
         if self.target_values.ndim != 1 or self.target_values.size == 0:
             raise ValueError("noise.target.values must be a non-empty list")
 

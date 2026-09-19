@@ -36,12 +36,16 @@ def notebook_raw_config() -> dict:
     for index in (3, 5):
         config_cell = ast.parse("".join(notebook["cells"][index]["source"]))
         for node in config_cell.body:
+            # Follow this branch when isinstance(node, ast.Assign).
             if isinstance(node, ast.Assign):
                 for target in node.targets:
+                    # Follow this branch when the compound condition is satisfied.
                     if isinstance(target, ast.Name) and target.id in {"RUN_CONFIG", "EXPERIMENT_CONFIG"}:
                         configs[target.id] = ast.literal_eval(node.value)
+    # Reject this state when set(configs) != {'RUN_CONFIG', 'EXPERIMENT_CONFIG'}.
     if set(configs) != {"RUN_CONFIG", "EXPERIMENT_CONFIG"}:
         raise AssertionError("Notebook must define literal RUN_CONFIG and EXPERIMENT_CONFIG")
+    # Reject this state when set(configs['RUN_CONFIG']) & set(configs['EXPERIMENT_CONFIG']).
     if set(configs["RUN_CONFIG"]) & set(configs["EXPERIMENT_CONFIG"]):
         raise AssertionError("Notebook config groups must not overlap")
     return {**configs["RUN_CONFIG"], **configs["EXPERIMENT_CONFIG"]}
@@ -59,6 +63,7 @@ class ToricRBMContractTest(unittest.TestCase):
         errors[1, 0] = 1
         errors[2, 1] = 1
         target_np = code.syndrome(errors[1])
+        # Choose the first expression when torch.cuda.is_available(); otherwise use the fallback.
         devices = ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
         for device in devices:
             with self.subTest(device=device):
@@ -76,6 +81,7 @@ class ToricRBMContractTest(unittest.TestCase):
 
         rng = np.random.default_rng(5)
         data = (rng.random((256, 12)) < 0.2).astype(np.uint8)
+        # Choose the first expression when torch.cuda.is_available(); otherwise use the fallback.
         devices = ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
         for device in devices:
             with self.subTest(device=device):
@@ -84,6 +90,7 @@ class ToricRBMContractTest(unittest.TestCase):
                     model = JointErrorSyndromeRBM(error_units=8, syndrome_units=4, hidden_units=6, init_width=0.1, seed=3).to(device)
                     optimizer = torch.optim.SGD(model.parameters(), lr=0.05, weight_decay=1e-4)
                     generator = torch.Generator(device=device).manual_seed(11)
+                    # Choose the first expression when fast; otherwise use the fallback.
                     split = model.to_visible_tensor(data) if fast else data
                     losses = [
                         model.contrastive_divergence_step(
@@ -92,6 +99,7 @@ class ToricRBMContractTest(unittest.TestCase):
                         )
                         for start in range(0, len(data), 32)
                     ]
+                    # Follow this branch when fast.
                     if fast:
                         losses = torch.stack(losses).cpu().numpy().astype(np.float64).tolist()
                     runs.append((losses, [p.detach().clone() for p in model.parameters()], generator.get_state()))
@@ -134,7 +142,9 @@ class ToricRBMContractTest(unittest.TestCase):
         run_keys = {"schema_version", "execution", "experiment", "topic", "reproducibility", "outputs"}
 
         def start(raw: dict):
+            # Keep only values that satisfy k in run_keys.
             run_config = {k: v for k, v in raw.items() if k in run_keys}
+            # Keep only values that satisfy k not in run_keys.
             experiment = {k: v for k, v in raw.items() if k not in run_keys}
             with redirect_stdout(io.StringIO()):
                 return qec.start_notebook_run(
@@ -154,6 +164,7 @@ class ToricRBMContractTest(unittest.TestCase):
             for index, syndrome in enumerate(test.syndrome):
                 result = decoder.decode(syndrome, rng=qec.decoding_rng(record.config, index))
                 out["steps"][index] = result.steps
+                # Follow this branch when result.success.
                 if result.success:
                     out["recovery"][index], out["valid"][index] = result.recovery, 1
             return out
@@ -270,7 +281,9 @@ class ToricRBMContractTest(unittest.TestCase):
             raw["execution"]["conda_env"] = Path(sys.prefix).name
             raw["training"]["device"] = "cpu"
             run_keys = {"schema_version", "execution", "experiment", "topic", "reproducibility", "outputs"}
+            # Keep only values that satisfy key in run_keys.
             run_config = {key: value for key, value in raw.items() if key in run_keys}
+            # Keep only values that satisfy key not in run_keys.
             experiment_config = {key: value for key, value in raw.items() if key not in run_keys}
             code = build_code(experiment_config)
             noise = build_noise_model(experiment_config)
@@ -442,5 +455,6 @@ class ToricRBMContractTest(unittest.TestCase):
             self.assertIn("decoder_latency_p95_ms", report["rbm"])
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     unittest.main()

@@ -17,6 +17,7 @@ class IndependentPhaseFlipNoise(NoiseModel):
     name: str = "phase_flip"
 
     def __post_init__(self) -> None:
+        # Reject this state when not 0.0 <= self.p_error <= 1.0.
         if not 0.0 <= self.p_error <= 1.0:
             raise ValueError("p_error must lie in [0, 1]")
 
@@ -26,12 +27,14 @@ class IndependentPhaseFlipNoise(NoiseModel):
         num_data_qubits: int,
         rng: np.random.Generator,
     ) -> np.ndarray:
+        # Reject this state when n_samples < 1 or num_data_qubits < 1.
         if n_samples < 1 or num_data_qubits < 1:
             raise ValueError("n_samples and num_data_qubits must be positive")
         return (rng.random((n_samples, num_data_qubits)) < self.p_error).astype(np.uint8)
 
     def sample(self, n_samples: int, rng: np.random.Generator) -> NoiseDraw:
         """Expose the fixed physical error probability through the common API."""
+        # Reject this state when n_samples < 1.
         if n_samples < 1:
             raise ValueError("n_samples must be positive")
         _ = rng

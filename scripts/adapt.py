@@ -9,5 +9,6 @@ def main() -> int:
     raise NotImplementedError("Adaptation is not implemented; this Phase 0 baseline must fail loudly")
 
 
+# Run the command-line entry point when this module is executed directly.
 if __name__ == "__main__":
     raise SystemExit(main())

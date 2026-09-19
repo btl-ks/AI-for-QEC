@@ -28,6 +28,7 @@ class SurfaceCode(StabilizerCode):
     distance: int = 5
 
     def __post_init__(self) -> None:
+        # Reject distances that cannot define the supported rotated patch.
         if self.distance < 3 or self.distance % 2 == 0:
             raise ValueError("Rotated surface-code distance must be an odd integer of at least 3")
 
@@ -61,15 +62,24 @@ class SurfaceCode(StabilizerCode):
         for r in range(size - 1):
             for c in range(size - 1):
                 face = support((r, c), (r, c + 1), (r + 1, c), (r + 1, c + 1))
-                (x_checks if (r + c) % 2 == 0 else z_checks).append(face)
+                # Assign even-parity faces to the X-check sublattice.
+                if (r + c) % 2 == 0:
+                    x_checks.append(face)
+                # Assign odd-parity faces to the Z-check sublattice.
+                else:
+                    z_checks.append(face)
         for c in range(size - 1):
+            # Place even-indexed horizontal boundary checks on the top edge.
             if c % 2 == 0:
                 z_checks.append(support((0, c), (0, c + 1)))
+            # Place odd-indexed horizontal boundary checks on the bottom edge.
             else:
                 z_checks.append(support((size - 1, c), (size - 1, c + 1)))
         for r in range(size - 1):
+            # Place odd-indexed vertical boundary checks on the left edge.
             if r % 2 == 1:
                 x_checks.append(support((r, 0), (r + 1, 0)))
+            # Place even-indexed vertical boundary checks on the right edge.
             else:
                 x_checks.append(support((r, size - 1), (r + 1, size - 1)))
         return np.stack(x_checks), np.stack(z_checks)
