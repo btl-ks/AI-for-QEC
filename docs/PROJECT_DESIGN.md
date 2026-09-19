@@ -1,14 +1,15 @@
 # AI-QEC 当前架构
 
-本文描述仓库**当前的可执行架构**及工作区放置规则，不把研究愿景或预留目录写成已经提供的能力。外部工具与 backend 选型见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)；研究方向见 [RESEARCH_TOPICS.md](RESEARCH_TOPICS.md)，待办任务和验收条件见 [OPTIMIZATION_PLAN.md](OPTIMIZATION_PLAN.md)。
+本文描述仓库**当前的可执行架构**及工作区放置规则，不把研究愿景或预留目录写成已经提供的能力。目标行为与验收场景见 [OpenSpec 需求基线](../openspec/changes/establish-qec-research-platform-requirements/proposal.md)；外部工具与 backend 选型见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)；研究方向见 [RESEARCH_TOPICS.md](RESEARCH_TOPICS.md)，待办任务、状态与 Gate 见 [OPTIMIZATION_PLAN.md](OPTIMIZATION_PLAN.md)。
 
 ## 1. 设计边界
 
-项目把五种对象严格分开：
+项目把六种对象严格分开：
 
 | 对象 | 唯一位置 | 说明 |
 |---|---|---|
 | 可复用 Python 实现 | `ai_qec/` | QEC、数据、模型、训练、评估和基础设施 |
+| 目标行为与变更记录 | `openspec/specs/`、`openspec/changes/` | 可测试需求、设计决策与实施任务；文件存在不表示能力已经实现 |
 | 实验声明 | `configs/` 或论文 Notebook 的配置单元格 | 脚本 runner 使用 YAML 与 flow；Torlai–Melko Notebook 直接定义参数并保存 run 快照 |
 | 可复用数据集 | `datasets/` | 内容寻址、带 manifest、可被多个 run 引用 |
 | 一次执行的结果 | `runs/<run_id>/` | 配置快照、日志、checkpoint、预测、指标和报告 |
@@ -20,13 +21,13 @@
 
 | 目录 | Git | 写入者 |
 |---|---|---|
-| `ai_qec/`、`configs/`、`scripts/`、`tests/`、`docs/` | 跟踪 | 开发者 |
+| `ai_qec/`、`configs/`、`scripts/`、`tests/`、`docs/`、`openspec/` | 跟踪 | 开发者与按 OpenSpec 工作流执行的 agent |
 | `paper/docs/`、`paper/srcs/`、`paper/summary/`、`paper/templates/` | 跟踪 | 开发者 |
 | `paper/releases/` | 忽略 | 显式 allowlist 导出器 |
 | `datasets/` | 忽略 | 数据生成器 |
 | `runs/` | 忽略 | 实验 runner |
 
-`.git/`、`.codex/`、`.agents/` 和 `.vscode/` 是本地工具状态，不属于项目功能。根目录的 `README.md`、`AGENTS.md`、`pyproject.toml`、`requirements.txt`、`.gitignore` 和 `.gitattributes` 分别负责项目入口、Agent 规则、打包、依赖和仓库策略。
+`.git/`、`.codex/`、`.agents/` 和 `.vscode/` 是本地工具状态，不属于项目功能。根目录的 `README.md`、`AGENTS.md`、`pyproject.toml`、`uv.lock`、`.gitignore` 和 `.gitattributes` 分别负责项目入口、Agent 规则、打包、锁定依赖和仓库策略。OpenSpec 为 Codex 生成的 `.agents/skills/openspec-*` 属于本地工具文件并保持 Git 忽略。
 
 ## 2. 当前执行数据流
 
@@ -219,7 +220,8 @@ paper/releases/                      # 本地不可变导出包；Git 忽略
 | [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md) | 外部依赖、标准格式、backend 与模型技术选型 |
 | 本文 | 当前代码分层、模块边界、数据流、能力状态和工作区放置规则 |
 | [RESEARCH_TOPICS.md](RESEARCH_TOPICS.md) | D1–D5 研究问题与术语 |
-| [OPTIMIZATION_PLAN.md](OPTIMIZATION_PLAN.md) | 任务、依赖、验收条件和未完成路线图 |
+| [OPTIMIZATION_PLAN.md](OPTIMIZATION_PLAN.md) | 任务 ID、依赖、进度、Gate 和未完成路线图 |
+| [`openspec/specs/` 与 `openspec/changes/`](../openspec/) | 目标行为、验收场景、变更设计与可执行任务 |
 | [PAPER_REPRODUCTION_DESIGN.md](PAPER_REPRODUCTION_DESIGN.md) | 论文复现的范围、代码映射与 Notebook 规则 |
 
-新增能力时，同时更新本文的模块状态、对应配置说明和测试；新增研究方向时更新研究主题地图和优化计划。不要在多个文档复制同一份完整目录树。
+目标行为变化先在 OpenSpec change 中提出并定义场景；实现通过后再更新本文的模块状态、配置说明和测试证据。新增研究方向时更新研究主题地图和优化计划。不要把 OpenSpec 的完整 Requirement 复制到其他文档。

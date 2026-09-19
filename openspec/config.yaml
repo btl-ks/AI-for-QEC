@@ -1,0 +1,84 @@
+schema: spec-driven
+
+context: |
+  Language: zh-CN
+  All artifacts must be written in zh-CN.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Project: AI for QEC research and paper-reproduction platform.
+  Before planning or implementation, read AGENTS.md and the relevant sections of:
+  docs/RESEARCH_TOPICS.md, docs/PROJECT_DESIGN.md,
+  docs/TECHNOLOGY_STACK.md, docs/OPTIMIZATION_PLAN.md, and
+  docs/PAPER_REPRODUCTION_DESIGN.md.
+
+  Hard constraints:
+  - Definitive academic claims require direct paper citations. Otherwise label
+    them as hypotheses, design assumptions, preprints, vendor evidence, or
+    project-local observations.
+  - Never create empty, fake, placeholder, or provenance-free datasets and
+    never silently fall back to a different capability.
+  - Dataset, run, checkpoint, metric, and paper-export identities must remain
+    traceable and immutable after registration.
+  - New public Python APIs must be exported from ai_qec/notebook_api.py.
+  - Keep the architecture as a modular monolith until a measured deployment
+    requirement justifies another process boundary.
+  - Reuse mature libraries through project adapters; preserve project-owned
+    QECProblem, dataset, decoder, experiment, and evidence contracts.
+
+  User intent defines the authorized work scope:
+  - Record or document: update requested requirements, decisions, or docs only.
+  - Analyze or review: inspect and report; modify files only when recording or
+    fixing is also requested.
+  - Design, plan, propose, or specify: complete and strictly validate planning
+    artifacts, but do not implement code.
+  - Implement, develop, fix, refactor, or complete: authorize the full planning,
+    implementation, automated-test, verify, and evidence lifecycle without a
+    second request containing the word apply.
+  - Continue or resume: continue the previously authorized change.
+
+  Document responsibilities:
+  - openspec/specs: durable target behavior and acceptance scenarios.
+  - docs/PROJECT_DESIGN.md: current implemented architecture and capability state.
+  - docs/TECHNOLOGY_STACK.md: external tools and technology decisions.
+  - docs/OPTIMIZATION_PLAN.md: task IDs, dependencies, progress, and exit gates.
+  - docs/RESEARCH_TOPICS.md: research directions and terminology.
+  - docs/PAPER_REPRODUCTION_DESIGN.md: paper-specific scope and notebook rules.
+
+rules:
+  proposal:
+    - Distinguish current implemented behavior from target behavior.
+    - List every affected capability and identify gate dependencies.
+    - State whether the change is an umbrella baseline or an implementable child change; an umbrella proposal must list the bounded child changes required before implementation.
+  specs:
+    - Every normative requirement must be observable and testable.
+    - Scientific success criteria must name the protocol or require one to be frozen.
+    - Use stable requirement and scenario names so design, tasks, tests, and evidence can reference them without ambiguity.
+  design:
+    - Prefer a mature library or adapter before proposing custom implementation.
+    - Separate research control-plane decisions from performance data-plane decisions.
+    - Map every affected requirement and scenario to component boundaries, APIs, data/state models, failure semantics, compatibility or migration decisions, and verification points.
+    - Include a requirement-to-evidence trace showing requirement/scenario -> functional design -> implementation task -> test evidence.
+  tasks:
+    - Reference an existing OPTIMIZATION_PLAN task ID when one exists.
+    - State a concrete verification command, test, or observable artifact for every task.
+    - Decompose work from the approved functional design; every task must reference the requirement/scenario and design section it implements.
+    - Mark a task complete only after its named test evidence passes and the requirement-to-evidence trace is updated.
+
+operations:
+  apply:
+    guidance:
+      - Before implementation, run strict OpenSpec validation for the selected child change and resolve every validation error.
+      - A request to implement, develop, fix, refactor, complete, continue, or resume the selected behavior authorizes apply; do not require the user to repeat the request with the literal word apply.
+      - A request limited to recording, analysis, design, planning, proposal, or specification does not authorize implementation.
+      - Follow the branch and commit rules in AGENTS.md.
+      - Keep generated datasets, runs, checkpoints, and paper releases out of Git.
+      - Run the verification command named by each task before checking it; keep the requirement/scenario/design/task/evidence trace current.
+      - Update capability state and OPTIMIZATION_PLAN progress only with passing evidence.
+  archive:
+    guidance:
+      - Run the OpenSpec verify workflow after automated tests; resolve every CRITICAL issue before archive.
+      - Create verification.md in the change directory from openspec/templates/verification.md and record the tested commit, environment, trace matrix, exact commands and results, evidence paths and hashes, limitations, and verdict.
+      - Block archive when any task is unchecked, required scenario evidence is missing, verification.md is absent, or the verdict does not permit archive.
+      - Sync accepted delta specs before archive.
+      - Confirm the current-architecture documentation matches the implemented capability state.
+      - Preserve failed, partial, and evidence-insufficient research outcomes in the change summary.

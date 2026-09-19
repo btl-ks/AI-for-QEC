@@ -19,7 +19,8 @@ toric code-capacity data → joint RBM → Gibbs decoder / exact MWPM → logica
 | `configs/` | 受版本控制的实验参数与执行流程声明，不保存运行结果 |
 | `scripts/` | 可执行命令入口及实验、导出编排；领域实现调用 `ai_qec/` |
 | `tests/` | 当前的单元与 smoke 自动测试，不保存实验结果 |
-| `docs/` | 项目设计、研究主题、计划、协议和工作区规则 |
+| `docs/` | 当前架构、技术选型、研究主题、任务进度和论文复现说明 |
+| `openspec/` | 目标行为规格、活动变更、设计与可验收任务；不表示能力已经实现 |
 | `paper/` | 论文原文、实验 Notebook、复现模板和本地导出 release |
 | `datasets/` | 可跨 run 复用的不可变数据集，由 manifest 和 generation hash 标识 |
 | `runs/` | 每次执行的配置快照、日志、指标、checkpoint、预测和图表 |
@@ -34,10 +35,11 @@ toric code-capacity data → joint RBM → Gibbs decoder / exact MWPM → logica
 | [技术栈决策](docs/TECHNOLOGY_STACK.md) | Stim、Qiskit、Sinter、PyMatching、PyTorch、GPU backend 和 Python 包管理如何接入？ |
 | [研究主题](docs/RESEARCH_TOPICS.md) | D1–D5 各研究什么？ |
 | [优化计划](docs/OPTIMIZATION_PLAN.md) | 下一步任务、依赖与验收条件是什么？ |
+| [OpenSpec 需求基线](openspec/changes/establish-qec-research-platform-requirements/proposal.md) | 平台目标行为、验收场景、设计决策和实施任务是什么？ |
 | [论文复现设计](docs/PAPER_REPRODUCTION_DESIGN.md) | 论文 Notebook 与主项目实现如何协作？ |
 | [Torlai–Melko 复现报告](paper/summary/TORLAI_MELKO_2017_REPORT/TORLAI_MELKO_2017_REPORT.md) | RBM 解码器复现的设计、问题、结果与局限是什么？ |
 
-开发和架构审阅先读 `AGENTS.md` 与当前架构；选择工具时读技术栈决策，执行任务时读优化计划中的对应验收条件。
+开发和架构审阅先读 `AGENTS.md` 与当前架构；选择工具时读技术栈决策，执行任务时读优化计划中的对应验收条件。涉及目标行为变化时还要读取对应 OpenSpec capability 或活动 change。OpenSpec 描述目标与验收，当前已实现能力仍以当前架构、registry 和通过的测试为准。
 
 1. `scripts/run_experiment.py`
    读取 YAML，一键按 `flow` 执行实验；自动建立 run、日志和 manifest。

@@ -105,3 +105,9 @@ Torlai–Melko 已完成 L=4、L=6 各 11 个错误率的论文规模网格（�
 ## 与现有优化计划的关系
 
 此论文的 toric code/code-capacity 路径不同于 Phase 1 计划的 rotated-surface-code memory circuit。两者可共享数据 schema、checkpoint 和 benchmark 基础设施，但不能把现有 toy baseline 或未来 Stim memory 结果当作这篇论文的物理实验。P4.0 只验收论文 smoke 路径与代码归属；正式论文网格、结果比较及 Phase 1–3 的验收仍需独立任务和正式 run，不能由 smoke 的成功状态推定。
+
+## OpenSpec 与自动验证边界
+
+论文复现的目标行为由 [`research/automated-validation`](../openspec/changes/establish-qec-research-platform-requirements/specs/research/automated-validation/spec.md) 约束：来源与发表状态、待验证主张、冻结 protocol、run 证据链、结论等级和最小复现包必须可追溯。
+
+该 capability 当前仍是 roadmap。现有 Notebook 和 runner 继续按本文的共享实现与 manifest 规则执行；增加 OpenSpec 文件不会自动获得论文解析、实验设计或自动复现能力。后续 P5.6 先自动执行已冻结协议，再逐步增加主张抽取与研究假设验证。

@@ -177,3 +177,15 @@ NVIDIA 在 2026 年发布了 AI predecoder 与 PyMatching 组合的厂商研究�
 4. 正式 run 与论文导出记录并校验 lock hash、解释器和关键包/设备版本，连同代码 commit、配置、seed 和 dataset identity 保持可追溯。此项与 P0.10、P4.10 对齐。
 
 实施顺序及可验收任务见 [优化计划的近期工作总览](OPTIMIZATION_PLAN.md#近期工作总览2026-09-19)。当前单包仓库无需 uv workspace；当出现独立发布的多个 Python 包时再评估。
+
+## 9. 规格驱动工作流（2026-09-19）
+
+项目使用 repo-local [OpenSpec](../openspec/) 管理目标行为与变更历史。活动需求基线位于 [`establish-qec-research-platform-requirements`](../openspec/changes/establish-qec-research-platform-requirements/proposal.md)，当前实现状态仍以 [PROJECT_DESIGN.md](PROJECT_DESIGN.md)、capability registry 和通过的测试为准。
+
+OpenSpec 属于开发工作流工具，不是 `ai_qec` 的运行依赖：
+
+1. OpenSpec CLI 所需的 Node 环境不进入 `pyproject.toml`、Python wheel、正式 run 或论文复现包。
+2. `openspec/specs/` 保存归档后的稳定行为；`openspec/changes/` 保存 proposal、delta specs、design 和 tasks。
+3. 外部库、格式和 backend 选型仍由本文维护；OpenSpec 只规定用户和下游系统可验证的行为。
+4. Python、C++/CUDA、FPGA/ASIC 的内部实现可以演进，但必须满足相同 dataset、decoder、experiment 和 evidence 合同。
+5. 新 capability 的目录或 spec 存在不代表已经实现；只有对应 Gate、测试和状态清单通过后才能标为 validated。

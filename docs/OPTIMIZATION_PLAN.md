@@ -2,7 +2,7 @@
 
 > 本文是任务路线图，不是当前目录树或能力说明。当前代码分层与文件放置规则见 [PROJECT_DESIGN.md](PROJECT_DESIGN.md)，外部工具边界见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)。任务完成状态必须以代码、测试和对应 Exit Criteria 为准。
 
-> 版本：v3.4（2026-09-19；完成项目依赖锁定）
+> 版本：v3.5（2026-09-19；建立 OpenSpec 需求基线并补齐研究平台任务映射）
 > 读者：项目维护者、协作者、coding agent
 > 依据：2026-09-14 架构与代码复核，以及 2026-09-15 技术栈核验（摘要见 §1 与 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)）
 > 规则：每个 Phase 有退出标准（Exit Criteria）；未满足时，不开始依赖它的后续工作。
@@ -77,6 +77,21 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 | 5 | 固定工程门禁与交付 | P4.2–P4.5、P4.9：lint/type/测试、wheel/CLI fresh install、CI 与文档；P0.10/P4.10 让论文包引用经验证的依赖锁和运行身份。 |
 
 库与项目代码的分工、uv/Conda 边界见 [技术栈决策 §7–8](TECHNOLOGY_STACK.md#7-项目特有逻辑与成熟库的分工2026-09-19)。第 2 项可并行推进；P1、P3 的 Phase gate 仍按本计划执行。以上条目未因写入本表而变成已完成。
+
+### OpenSpec 需求映射（2026-09-19）
+
+[活动 OpenSpec change](../openspec/changes/establish-qec-research-platform-requirements/proposal.md) 将目标行为整理为 6 个 capability、37 条 Requirement、49 个 Scenario 和 50 项可验收任务。它描述目标，不改变当前能力状态；实现进度仍由本计划的任务 ID、Phase Gate、代码和测试共同判定。
+
+| OpenSpec capability | 本计划 owner | 当前状态 |
+|---|---|---|
+| `research/experiment-lifecycle` | P0.14–P0.19、P0.13 | 未完成恢复与产物不可变收口 |
+| `qec/dataset-pipeline` | P1.1–P1.9、P5.4 | 真实电路级路径未实现 |
+| `qec/decoder-workbench` | P1.5/P1.9、P3.1–P3.7 | Toric/RBM smoke 可执行，电路级统一工作台未完成 |
+| `research/data-efficient-training` | P3.8–P3.9 | 新增研究任务，未实现 |
+| `deployment/performance-runtime` | P5.3–P5.5 | roadmap；无实时部署结论 |
+| `research/automated-validation` | P5.6 | roadmap；先复用冻结协议，后扩展主张抽取 |
+
+OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分支、提交和里程碑的父任务 ID，避免维护第二套互相竞争的进度状态。
 
 ### 发布语义门槛
 
@@ -200,7 +215,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 
 **目标**：配置真正驱动模型与训练；神经模型与经典基线在同一基准下对比。
 
-**内部依赖**：P3.1 + P3.2 + P3.3 → P3.4/P3.5 → P3.6/P3.7；P3.7 还依赖已退出的 P2 基准与冻结 seed/split/protocol。
+**内部依赖**：P3.1 + P3.2 + P3.3 → P3.4/P3.5 → P3.6/P3.7；P3.7 还依赖已退出的 P2 基准与冻结 seed/split/protocol。P3.8 依赖 P1、P2.5/P2.6 与 P3.5，P3.8 → P3.9。
 
 - [ ] **P3.1 依赖**：`[torch]` extra；需要图模型时增加独立 `[graph]` extra；明确 CPU/CUDA wheel 来源、设备能力检查与显式 CPU 执行，纳入 P4.10 的锁定支持矩阵。
 - [ ] **P3.2 注册表与能力解析**：装饰器注册（`@register_model("transformer_decoder")`），由 `ResolvedExperimentSpec` 构建；trainer/evaluator/exporter 都必须通过同一 registry，禁止直接实例化具体模型。`family`、`implementation`、input representation、outputs 与 checkpoint 不匹配即报错。
@@ -209,6 +224,8 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [ ] **P3.5 训练器与 checkpoint 状态**：真实读取 `epochs`、`batch_size`、`optimizer`、`scheduler`、`early_stopping`、`checkpoint.monitor`；混合精度；梯度累积；断点恢复；best 按 monitor 选择。checkpoint 保存模型/优化器/scheduler/scaler/RNG 状态及 resolved config、dataset/schema hash；恢复或评估前强校验兼容性。恢复一致性测试须固定 seed、断点 step、总 step 和逐项数值容差。
 - [ ] **P3.6 多任务、对抗头与校准**：target 回归 + logical decoding；可选梯度反转 nuisance 头。使用与声明一致的 proper loss，分别验证每个 head 的梯度与权重；概率输出增加校准评估，target 输出范围策略必须显式而非只裁下界。增加从冻结模型表示预测 nuisance 的 latent probe，使用 P2 split/protocol 报告 R²；该模型相关诊断不得反向阻塞 P2 退出。
 - [ ] **P3.7 统一对照表**：常数、density-only、非学习估计器、ridge-summary、MWPM、AI+MWPM hybrid、直接神经模型在同一 dataset identity、split、benchmark 与 seed 集上报告；禁止不同数据版本之间直接排名。
+- [ ] **P3.8 数据高效训练协议**：冻结码距、噪声、轮数、候选生成量、实际训练量、计算预算、主要指标、failure budget、停止规则和多 seed 方案；均匀采样、固定课程与其他简单重加权方法必须作为同预算基线。
+- [ ] **P3.9 困难样本与课程调度**：实现可审计候选池、困难样本 buffer、损失/置信度/RBM 能量评分器、原分布混合与可选 importance weighting；在固定独立测试集和未见噪声域报告 LER、样本效率、生成成本、GPU 时间、消融与置信区间。
 
 **硬件预算**：RTX 4060 Laptop 8 GB。d = 5、20 轮时每样本约数百个 detector token；hidden 256、6 层的模型需依赖混合精度并控制 batch。d ≥ 7 视显存评估梯度检查点或缩小模型。
 
@@ -218,6 +235,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - 训练可从 checkpoint 恢复，且按 P3.5 预先固定的 step/seed/数值容差与不中断训练一致。
 - 改变任何已声明的模型/训练配置会改变 resolved plan 或被明确拒绝；不存在无效但被接受的参数。
 - evaluator 对错误 dataset、feature order、model implementation 或 config hash 的 checkpoint 必须 fail loudly。
+- P3.8/P3.9 的所有方法使用相同模型族、预算和独立测试集；未达到 failure budget 时标记 evidence-insufficient，不发布不稳定成功结论。
 
 ---
 
@@ -231,6 +249,7 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 - [x] **P4.13 架构与包管理执行摘要**：在技术栈文档明确领域代码与 Stim/PyMatching/Sinter/PyTorch 的分工、`pyproject.toml` + uv 的目标方案及 Conda/CUDA 边界；在本计划索引依赖关系和验收任务。此项仅为文档决策，不表示 uv 已安装、依赖已锁定或后续能力已实现。
 - [x] **P4.14 论文总结目录迁移**：将 Torlai–Melko 报告 Markdown 归入同名子目录，修复报告内资源/源码相对链接及项目文档入口；嵌套目录的生成版 PDF/HTML 保持 Git 忽略。以仓库内相对链接校验与 `git check-ignore` 验收。
 - [x] **P4.15 解码器目录归属复核**：对照当前架构与未来 decoder protocol，确认现阶段保留 `models/decoders/`，不单独移动 Gibbs 解码器；将整体目录取舍、owner、默认方案和最晚决策点写入 P1.9。本项仅完成架构计划，不表示目录已迁移或 P1.9 已交付。
+- [x] **P4.16 OpenSpec 需求基线与文档职责同步**：初始化 repo-local OpenSpec，建立实验生命周期、数据管线、解码工作台、数据高效训练、性能运行时和自动验证 6 个 capability 的 proposal/spec/design/tasks；严格校验通过。README、AGENTS 与 docs 只链接目标需求，不把未实现 capability 写成当前能力。本项只完成规划与文档整理，不表示 50 项实施任务已完成。
 - [ ] **P4.1** 提供安装后的统一 `ai-qec` CLI（run/generate/train/evaluate/benchmark/export 子命令）；开发环境通过 P4.10 的 `uv sync --locked` 安装所选 extras/groups，另在仓库外安装 wheel 验证 CLI。移除 scripts 中的 `sys.path` 注入；package data 不得引用 wheel 外的默认配置，各 extra 的支持矩阵必须测试。
 - [ ] **P4.2** ruff + pytest + typing + coverage；测试按 `unit/`、`integration/`、`regression/`、`smoke/` 分层，并设置最低覆盖门槛。smoke 必须经过正式 runner，而非手工串联子脚本。
 - [ ] **P4.3** 回归测试：固定 seed 小数据集的 golden metrics，按容差比较；golden fixture 使用明确 allowlist，不得因全局 `*.npz` ignore 而静默缺失。
@@ -253,19 +272,21 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 
 ## Phase 5 — 平台扩展
 
-**Gate**：P5.1/P5.2 要求 P2 与 P3 的 Exit Criteria 均已满足；P5.3 还要求 P4.1、P4.2、P4.10 完成；P5.4 要求 P1 与 P4.10；P5.5 要求 P1.2/P1.3/P1.9。完整 Phase 5 验收要求 Phase 4 已退出。
+**Gate**：P5.1/P5.2 要求 P2 与 P3 的 Exit Criteria 均已满足；P5.3 还要求 P4.1、P4.2、P4.10 完成；P5.4 要求 P1 与 P4.10；P5.5 要求 P1.2/P1.3/P1.9；P5.6 要求 G1–G4 的身份、协议、runner 和导出闭环均已验证。完整 Phase 5 验收要求 Phase 4 已退出。
 
 - [ ] **P5.1（研究方向 D2.3）**：时变噪声流数据生成 + continual adaptation benchmark；预先定义 drift、适应延迟、遗忘与静态 baseline 指标。
 - [ ] **P5.2（研究方向 D2.4）**：迁移 d = 3 → 5 → 7、noise A → B；实现 source-only、from-scratch、fine-tune 与 adapter 的统一 transfer benchmark。
 - [ ] **P5.3（研究方向 D4.1）**：分别测量 T_model、T_decoder 与 T_E2E；端到端边界、数据移动、预处理和后处理必须明确定义并纳入 T_E2E。报告 warm-up、batch=1、p50/p95/p99、throughput、内存、硬件/软件环境和 deadline miss rate；只有 component latency 时不得通过 G5.3。
 - [ ] **P5.4 可选 GPU sampler**：实现 `custabilizer_gpu` adapter，不改变 schema 与 sampler protocol；启动前检查 cuStabilizer/CUDA/设备能力，禁止静默回退。对相同 circuit/DEM 做统计等价性测试，并按 distance × rounds × shots × noise model 报告与 Stim CPU 的吞吐 crossover、总耗时、显存和环境。能力依据与限制见 [TECHNOLOGY_STACK.md](TECHNOLOGY_STACK.md)。
 - [ ] **P5.5 Circuit interoperability adapters**：增加 OpenQASM 3/Qiskit 输入 adapter，通用电路与 IBM hardware 只通过该边界接入。adapter 必须显式接收或生成经过验证的 detector/observable mapping；无法保留 QEC 语义时拒绝转换。QIR/CUDA-Q adapter 仅在部署需求明确后另建任务。
+- [ ] **P5.6 AI 辅助论文与想法验证**：建立带来源状态的 claim/hypothesis record、冻结 protocol、时间与算力预算、证据图和证据等级。第一步只自动重跑已冻结协议；论文主张抽取与新实验生成必须在缺少 estimand、基线、预算或成功判据时停止并等待决策。
 - D3（FTQC runtime）与 D5（QEC design）保持 roadmap 状态，暂不投入实现。
 
 **Exit Criteria**
 - P5.1：至少一个预先定义的 drift 场景可复现，adaptation 与无适应 baseline 同表报告，包含恢复时间、稳态误差和遗忘指标。
 - P5.2：每个 transfer 结论均有 source/target 数据身份、独立 seed、from-scratch 对照和置信区间；不把输入尺寸变化误当作迁移收益。
 - P5.3：延迟测量区分模型、decoder 与端到端边界，在固定硬件/软件环境重复运行，并同时报告正确性；仅测 Python helper 不得称为实时部署。
+- P5.6：每项自动生成结论均可追溯到来源、冻结 protocol、代码、数据、checkpoint、预测和统计结果；预算耗尽、证据不足和实现失败不得显示为成功复现。
 - 任一任务可独立形成里程碑；未完成的 P5 任务保持 roadmap，不阻塞其他已验收任务的发布。
 
 ---
