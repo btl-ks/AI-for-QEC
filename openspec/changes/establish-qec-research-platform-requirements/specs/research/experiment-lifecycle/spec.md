@@ -2,7 +2,7 @@
 
 ## Purpose
 
-定义科研实验从配置解析、数据引用、执行、恢复到导出结束的可追溯行为，使每项结果都能绑定真实代码、环境、数据和终态，并能在中断后安全恢复。
+定义科研实验从配置解析、数据引用、执行到导出结束的可追溯行为，使每项结果都能绑定真实代码、环境、数据和终态。
 
 ## ADDED Requirements
 
@@ -42,20 +42,9 @@
 ### Requirement: Run 具有明确终态
 系统 SHALL 记录 run 的进程身份、阶段时间线和 success、partial、failed 或 interrupted 终态，且不得将零步骤或部分执行标记为 success。
 
-#### Scenario: 执行进程意外消失
-- **WHEN** 系统检查到标记为 running 的 run 对应进程已经不存在
-- **THEN** 系统把 run 收敛为 interrupted 并记录最后活动阶段
-
-### Requirement: 训练与解码可确定性恢复
-系统 SHALL 原子保存恢复所需的模型、优化器、随机流、进度和部分结果，并在恢复前校验代码、配置、数据与 checkpoint 身份。
-
-#### Scenario: 从训练中断点恢复
-- **WHEN** 兼容的 run 在一个完整训练边界后被中断并恢复
-- **THEN** 除明确定义的非确定性字段外，恢复执行满足预先登记的数值一致性标准
-
-#### Scenario: 恢复身份不兼容
-- **WHEN** 配置、dataset、模型实现或代码版本与恢复点不兼容
-- **THEN** 系统拒绝恢复且保留原 run 与 checkpoint
+#### Scenario: 零步骤或部分执行
+- **WHEN** run 没有执行任何步骤，或只完成了部分步骤
+- **THEN** 系统记录 partial 或 failed 终态，且不得标记为 success
 
 ### Requirement: 正式结果可独立复核
 系统 SHALL 为正式 run 保存配置快照、环境、代码状态、数据引用、日志、指标和引用关系，并通过显式 allowlist 导出最小复现包。

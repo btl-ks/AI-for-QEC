@@ -70,21 +70,21 @@ P4 中的安装、lint、测试分层（P4.1–P4.4）可从 P1 起并行推进�
 
 | 顺序 | 要做的事 | 对应任务及完成证据 |
 |---|---|---|
-| 1 | 收紧数据与 run 生命周期，再做长时间论文训练 | P0.14 按生成规格复用数据；P0.15/18 收敛中断并明确 `resumed_from`；P0.16/17 恢复训练与解码；P0.19 防止后续阶段改写已登记产物。用中断/续跑与 hash 回归测试验收。 |
+| 1 | 收紧数据与 run 生命周期，再做长时间论文训练 | P0.14 按生成规格复用数据；P0.19 防止后续阶段改写已登记产物。用 hash 回归测试验收。 |
 | 2 | 固定 Python 依赖和安装入口，可与第 1 项并行 | **P4.10 已完成**：`pyproject.toml` 分组、`uv.lock`、WSL 锁检查/全组合 dry-run/wheel 构建已通过；P4.1 仍待提供 wheel 可安装的 `ai-qec` CLI 并移除脚本的 `sys.path` 注入。P1.1/P3.1 仍需在真实 Stim/神经能力落地时验收。 |
 | 3 | 接入真实 QEC 库，建立一条电路级纵切面 | P1.2–P1.9：Stim 采样和 DEM、schema v2/分片、PyMatching MWPM、Sinter 兼容与 LER；用相同 shots、observable truth 和协议验证。 |
-| 4 | 建立可恢复的神经训练与公平对照 | P3.2–P3.5 将注册表、输入表示、模型、训练器放入共享包；P3.6/3.7 在 P2 冻结的 split/benchmark 上做校准与对照。论文 RBM 专属 CD-k/Gibbs 保持独立测试。 |
+| 4 | 建立神经训练与公平对照 | P3.2–P3.5 将注册表、输入表示、模型、训练器放入共享包；P3.6/3.7 在 P2 冻结的 split/benchmark 上做校准与对照。论文 RBM 专属 CD-k/Gibbs 保持独立测试。 |
 | 5 | 固定工程门禁与交付 | P4.2–P4.5、P4.9：lint/type/测试、wheel/CLI fresh install、CI 与文档；P0.10/P4.10 让论文包引用经验证的依赖锁和运行身份。 |
 
 库与项目代码的分工、uv/Conda 边界见 [技术栈决策 §7–8](TECHNOLOGY_STACK.md#7-项目特有逻辑与成熟库的分工2026-09-19)。第 2 项可并行推进；P1、P3 的 Phase gate 仍按本计划执行。以上条目未因写入本表而变成已完成。
 
 ### OpenSpec 需求映射（2026-09-19）
 
-[活动 OpenSpec change](../openspec/changes/establish-qec-research-platform-requirements/proposal.md) 将目标行为整理为 6 个 capability、37 条 Requirement、49 个 Scenario 和 50 项可验收任务。它描述目标，不改变当前能力状态；实现进度仍由本计划的任务 ID、Phase Gate、代码和测试共同判定。
+[活动 OpenSpec change](../openspec/changes/establish-qec-research-platform-requirements/proposal.md) 将目标行为整理为 6 个 capability、36 条 Requirement、47 个 Scenario 和 46 项可验收任务。它描述目标，不改变当前能力状态；实现进度仍由本计划的任务 ID、Phase Gate、代码和测试共同判定。
 
 | OpenSpec capability | 本计划 owner | 当前状态 |
 |---|---|---|
-| `research/experiment-lifecycle` | P0.14–P0.19、P0.13 | 未完成恢复与产物不可变收口 |
+| `research/experiment-lifecycle` | P0.14、P0.19、P0.13 | 未完成数据集身份与产物不可变收口 |
 | `qec/dataset-pipeline` | P1.1–P1.9、P5.4 | 真实电路级路径未实现 |
 | `qec/decoder-workbench` | P1.5/P1.9、P3.1–P3.7 | Toric/RBM smoke 可执行，电路级统一工作台未完成 |
 | `research/data-efficient-training` | P3.8–P3.9 | 新增研究任务，未实现 |
@@ -100,7 +100,7 @@ OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分�
 | **G0 / P0** | 无静默 fallback；toy、配置、数据、checkpoint 与导出身份真实且安全 | “project-local toy synthetic plumbing baseline” |
 | **G1 / P1** | 真实 Stim circuit、observable、DEM、MWPM 与 LER 协议通过电路级仿真测试 | “Stim surface-code memory benchmark / circuit-level simulated LER” |
 | **G2 / P2** | 可辨识性、负对照、OOD、配对、多 seed 与置信区间完整 | 限定噪声模型下的 D2.2 科研结论 |
-| **G3 / P3** | 神经模型、训练恢复、校准及统一对照通过 | 神经解码器/噪声估计模型比较结论 |
+| **G3 / P3** | 神经模型、校准及统一对照通过 | 神经解码器/噪声估计模型比较结论 |
 | **G4 / P4** | wheel 安装、CI、文档与仓库外 paper-package 闭包测试通过 | 可安装、受 CI 门禁且可复现的研究软件版本 |
 | **G5.1 / P5.1** | drift 协议、静态对照、恢复与遗忘指标完整 | 限定 drift 场景下的持续适应结论 |
 | **G5.2 / P5.2** | source/target 身份、from-scratch 对照、多 seed 与置信区间完整 | 限定 code/noise 域的迁移结论 |
@@ -127,16 +127,14 @@ OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分�
 - [x] **P0.12 Runner 生命周期与状态机**：runner 只执行 P0.4 产出的 resolved plan；run ID 使用高精度时间/UUID + config hash，目标已存在时默认拒绝。写盘前验证完整 flow、`--only/--skip` ID 与依赖；零步骤为错误，部分执行标为 `partial`。run 创建时即写 manifest，并在每次状态变更时原子更新；捕获异常/中断为 `failed`/`interrupted`；按 resolved step output contract 校验 path/type/non-empty/schema/hash，记录 skipped/disabled 原因。
 - [x] **P0.13 诚信回归测试**：新增真正调用 `run_experiment.py` 的端到端 smoke；覆盖 unsafe export、unknown/unconsumed config、未实现 capability、zero-step、run collision、stale dataset、multi-seed、缺失 backend 字段、损坏 NPZ、异常终态和 paper package 闭包。测试不得只检查文件存在，还要检查身份、schema 与关键语义。
 
-> 2026-09-17 追加（P0.14–P0.19）：Torlai–Melko 论文规模复现暴露的中断恢复与身份问题。P0.14 补齐 P0.7 的“按生成规格命名”，P0.15 补齐 P0.12 在 Notebook/进程被杀路径上的中断收敛；在它们完成前 Phase 0 不视为退出。
+> 2026-09-17 追加（P0.14、P0.19）：Torlai–Melko 论文规模复现暴露的数据集身份与产物改写问题。P0.14 补齐 P0.7 的“按生成规格命名”；在它们完成前 Phase 0 不视为退出。
+>
+> 2026-09-20 移除：原 P0.15–P0.18（run 存活检测与中断收敛、训练断点续跑、解码断点续跑、续跑 run 语义）与 DEC-7 整体取消。训练中断后重跑，不提供断点恢复。P0.14 与 P0.19 保留——它们修的是数据集身份与产物改写两个现存缺陷，与中断恢复无关。
 
 - [ ] **P0.14 数据集身份只取生成规格**：当前 `generation_hash` 包含整份 run 配置的 `config_hash`，实验名称、训练或解码参数（如 `training.decoder.max_steps`）一变就生成新的数据集目录，导致只改解码设置的 run 找不到已有数据。身份改为只覆盖生成规格（code、noise、data 的样本数与生成器版本、seed、batch 策略及有效噪声参数）；训练、解码与实验元数据不得进入数据身份。给出既有数据集目录的兼容或迁移方案，旧 run 的引用必须仍可校验；测试“仅改训练/解码/实验名”时复用同一数据集，改任一生成字段时身份不同。
-- [ ] **P0.15 run 存活检测与中断收敛**：run 创建时在 manifest 记录进程号、主机名与启动标识；Notebook（`RunRecord`）与 runner 在启动新 run 或显式清理时，把进程已不存在的 `running` run 标为 `interrupted`，记录中断时所在阶段，不得长期停留在 `running`。`Ctrl+C` 已记为 `failed`，本任务覆盖 SIGKILL、断电、关机与休眠后进程丢失等路径；用被强制结束的子进程做回归测试。
-- [ ] **P0.16 训练断点续跑**：每个 epoch 结束时原子写入续跑状态（模型、优化器、数据洗牌与 CD 采样两个随机数生成器的状态、训练历史、当前 best 及其 epoch），并在 manifest 记录其 hash。续跑前校验配置、数据集身份与代码版本一致，从下一个 epoch 继续。测试：任意 epoch 处中断再续跑，得到的参数、训练历史与 `best.pt` 必须与不中断时逐位一致。
-- [ ] **P0.17 解码断点续跑**：解码阶段每 N 条样本原子保存部分预测（恢复链、有效标记、步数、延迟与失败标记）；续跑从第一个未完成的样本继续。每条样本使用独立随机流，续跑结果必须与不中断时逐位一致（延迟字段除外），并有测试。
-- [ ] **P0.18 续跑 run 的语义**（待决策 DEC-7）：明确续跑是在原 run 内继续，还是新建 run 并以 `resumed_from` 指向被中断的 run；两种方式都不得重新生成数据集（依赖 P0.14），且 manifest 必须保留完整的中断与续跑时间线。若选择在原 run 内继续，只允许状态为 `interrupted`、配置 hash 与代码版本均一致的 run，并同步修订“每次执行分配唯一 run ID”的约定。
 - [ ] **P0.19 阶段产物不可变**：当前 benchmark 阶段把指标合并写回 evaluate 阶段已记录 hash 的 `metrics.json`，使 evaluate 记录的 hash 必然失效。任何阶段不得修改前序阶段已登记的产物；需要汇总时写入新文件或由 `finish` 生成汇总。run 结束时校验所有阶段登记的产物 hash 与磁盘一致，不一致即判定失败，并有测试。
 
-**内部依赖**：P0.0 为首要且可独立交付的安全热修复；P0.3 + P0.4 → P0.11 → P0.7 → P0.9 → P0.10；P0.4 → P0.5/P0.12；P0.7 + P0.12 → P0.8；P0.6 在 P1 前完成；P0.14 → P0.16/P0.17；P0.15 + DEC-7 → P0.18 → P0.16/P0.17；P0.19 可独立推进；P0.13 在其覆盖的任务（含 P0.14–P0.19）完成后统一收口。
+**内部依赖**：P0.0 为首要且可独立交付的安全热修复；P0.3 + P0.4 → P0.11 → P0.7 → P0.9 → P0.10；P0.4 → P0.5/P0.12；P0.7 + P0.12 → P0.8；P0.6 在 P1 前完成；P0.14 与 P0.19 均可独立推进；P0.13 在其覆盖的任务（含 P0.14、P0.19）完成后统一收口。
 
 **Exit Criteria**
 - unsafe `--output` 不可能删除项目、run/data 根或未知目录；导出失败不损坏既有 release。
@@ -147,8 +145,7 @@ OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分�
 - 同 config+seed 在不同生成 batch size 下内容一致；若作为临时例外，则身份 hash 必须不同且 manifest 明示原因。
 - 多 seed 产生独立 child runs 与父级汇总，或在未实现时拒绝多 seed 配置。
 - README、配置注释、manifest、metric 名和报告中的 smoke 结果统一标注为 `project-local toy synthetic baseline`。
-- 只改训练、解码或实验元数据的 run 复用同一数据集；进程被强制结束后，run 会被收敛为 `interrupted` 而非停留在 `running`。
-- 训练与解码在任意中断点续跑后，结果与不中断时逐位一致（延迟字段除外），且续跑不重新生成数据；续跑的 run 关系按 DEC-7 记录在 manifest 中。
+- 只改训练、解码或实验元数据的 run 复用同一数据集。
 - run 结束时，所有阶段登记的产物 hash 与磁盘文件一致。
 
 ---
@@ -221,7 +218,7 @@ OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分�
 - [ ] **P3.2 注册表与能力解析**：装饰器注册（`@register_model("transformer_decoder")`），由 `ResolvedExperimentSpec` 构建；trainer/evaluator/exporter 都必须通过同一 registry，禁止直接实例化具体模型。`family`、`implementation`、input representation、outputs 与 checkpoint 不匹配即报错。
 - [ ] **P3.3 输入表示**：detector events 时空张量和 detector graph + 探测器坐标嵌入（Stim `get_detector_coordinates()`）；side-information schema 能携带 soft readout、leakage 与 calibration/domain context，缺失时使用显式 mask。
 - [ ] **P3.4 第一条神经纵切面**：优先实现 AI edge-weight estimator 或局部 predecoder + PyMatching，输出 edge weights/residual syndrome 与 diagnostics；从 d = 3 起步。随后在同一协议下增加 detector-graph GNN 与 recurrent Transformer 直接 decoder 作为比较模型，研究依据见 [5,6]，predecoder 工程路线参考厂商公开结果 [7]。
-- [ ] **P3.5 训练器与 checkpoint 状态**：真实读取 `epochs`、`batch_size`、`optimizer`、`scheduler`、`early_stopping`、`checkpoint.monitor`；混合精度；梯度累积；断点恢复；best 按 monitor 选择。checkpoint 保存模型/优化器/scheduler/scaler/RNG 状态及 resolved config、dataset/schema hash；恢复或评估前强校验兼容性。恢复一致性测试须固定 seed、断点 step、总 step 和逐项数值容差。
+- [ ] **P3.5 训练器与 checkpoint 状态**：真实读取 `epochs`、`batch_size`、`optimizer`、`scheduler`、`early_stopping`、`checkpoint.monitor`；混合精度；梯度累积；best 按 monitor 选择。checkpoint 保存模型/优化器状态及 resolved config、dataset/schema hash，供后续评估与导出使用；评估前强校验兼容性。不提供断点恢复。
 - [ ] **P3.6 多任务、对抗头与校准**：target 回归 + logical decoding；可选梯度反转 nuisance 头。使用与声明一致的 proper loss，分别验证每个 head 的梯度与权重；概率输出增加校准评估，target 输出范围策略必须显式而非只裁下界。增加从冻结模型表示预测 nuisance 的 latent probe，使用 P2 split/protocol 报告 R²；该模型相关诊断不得反向阻塞 P2 退出。
 - [ ] **P3.7 统一对照表**：常数、density-only、非学习估计器、ridge-summary、MWPM、AI+MWPM hybrid、直接神经模型在同一 dataset identity、split、benchmark 与 seed 集上报告；禁止不同数据版本之间直接排名。
 - [ ] **P3.8 数据高效训练协议**：冻结码距、噪声、轮数、候选生成量、实际训练量、计算预算、主要指标、failure budget、停止规则和多 seed 方案；均匀采样、固定课程与其他简单重加权方法必须作为同预算基线。
@@ -232,7 +229,6 @@ OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分�
 **Exit Criteria**
 - d = 3、5 memory 实验上神经模型与 MWPM 的 LER 同表报告（不预设优劣）。
 - D2.2 target 回归在 P2 基准下的检验结果完整报告（通过或失败均如实记录）。
-- 训练可从 checkpoint 恢复，且按 P3.5 预先固定的 step/seed/数值容差与不中断训练一致。
 - 改变任何已声明的模型/训练配置会改变 resolved plan 或被明确拒绝；不存在无效但被接受的参数。
 - evaluator 对错误 dataset、feature order、model implementation 或 config hash 的 checkpoint 必须 fail loudly。
 - P3.8/P3.9 的所有方法使用相同模型族、预算和独立测试集；未达到 failure budget 时标记 evidence-insufficient，不发布不稳定成功结论。
@@ -250,6 +246,7 @@ OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分�
 - [x] **P4.14 论文总结目录迁移**：将 Torlai–Melko 报告 Markdown 归入同名子目录，修复报告内资源/源码相对链接及项目文档入口；嵌套目录的生成版 PDF/HTML 保持 Git 忽略。以仓库内相对链接校验与 `git check-ignore` 验收。
 - [x] **P4.15 解码器目录归属复核**：对照当前架构与未来 decoder protocol，确认现阶段保留 `models/decoders/`，不单独移动 Gibbs 解码器；将整体目录取舍、owner、默认方案和最晚决策点写入 P1.9。本项仅完成架构计划，不表示目录已迁移或 P1.9 已交付。
 - [x] **P4.16 OpenSpec 需求基线与文档职责同步**：初始化 repo-local OpenSpec，建立实验生命周期、数据管线、解码工作台、数据高效训练、性能运行时和自动验证 6 个 capability 的 proposal/spec/design/tasks；严格校验通过。README、AGENTS 与 docs 只链接目标需求，不把未实现 capability 写成当前能力。本项只完成规划与文档整理，不表示 50 项实施任务已完成。
+- [x] **P4.17 退役中断恢复需求范围**：从 OpenSpec umbrella change 与本计划移除 P0.15–P0.18（run 存活检测与中断收敛、训练断点续跑、解码断点续跑、续跑 run 语义）与 DEC-7；训练被中断后重跑，不提供断点恢复。保留 P0.14 与 P0.19——二者修的是数据集身份与阶段产物改写两个现存缺陷，与中断恢复无关；保留 `interrupted` 终态，它属于已完成的 P0.12 runner 生命周期且 `run_experiment.py` 正在写入。规格规模由 37 Requirement / 49 Scenario / 50 任务降为 36 / 47 / 46，`openspec validate --strict` 通过。本项只退役需求范围，不改变任何已实现行为。
 - [ ] **P4.1** 提供安装后的统一 `ai-qec` CLI（run/generate/train/evaluate/benchmark/export 子命令）；开发环境通过 P4.10 的 `uv sync --locked` 安装所选 extras/groups，另在仓库外安装 wheel 验证 CLI。移除 scripts 中的 `sys.path` 注入；package data 不得引用 wheel 外的默认配置，各 extra 的支持矩阵必须测试。
 - [ ] **P4.2** ruff + pytest + typing + coverage；测试按 `unit/`、`integration/`、`regression/`、`smoke/` 分层，并设置最低覆盖门槛。smoke 必须经过正式 runner，而非手工串联子脚本。
 - [ ] **P4.3** 回归测试：固定 seed 小数据集的 golden metrics，按容差比较；golden fixture 使用明确 allowlist，不得因全局 `*.npz` ignore 而静默缺失。
@@ -320,7 +317,6 @@ OpenSpec 的 `tasks.md` 是场景级实施分解；本计划保留可用于分�
 | DEC-4 | 代码维护者 | 占位模块保留还是移出 `ai_qec/` | 活动路径先 fail loudly；无近期调用方者移到 roadmap | P4.8 前；P0.3 不等待此决策 |
 | DEC-5 | 科研负责人 | D2.2 target 的采样/预测单位 | 优先评估固定参数的多-shot window/session；单-shot 作为对照假设 | P2.0 完成前 |
 | DEC-6 | 科研负责人 | crosstalk 对应的目标硬件、门和耦合场景 | 选择一个明确平台与门级场景，不先宣称跨硬件通用 | P2.1 开始前；决定引用与适用范围 |
-| DEC-7 | 平台负责人 | 被中断的 run 续跑时：在原 run 内继续，还是新建 run 并记录 `resumed_from` | 新建 run 并记录 `resumed_from`，保持“每次执行一个 run”的约定 | P0.16/P0.17 实现前 |
 
 ---
 

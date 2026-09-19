@@ -2,7 +2,7 @@
 
 ## Context
 
-参见 [proposal.md](proposal.md) 的动机。当前仓库已经具有模块化 Python 包、配置驱动 runner、不可变 dataset/run 的部分基础、Toric RBM smoke、uv 锁文件和多份职责明确的项目文档；真实 Stim 电路级纵切面、可恢复正式训练、统一神经对照、实时部署与自动研究代理仍处于计划状态。
+参见 [proposal.md](proposal.md) 的动机。当前仓库已经具有模块化 Python 包、配置驱动 runner、不可变 dataset/run 的部分基础、Toric RBM smoke、uv 锁文件和多份职责明确的项目文档；真实 Stim 电路级纵切面、正式神经训练、统一神经对照、实时部署与自动研究代理仍处于计划状态。
 
 本设计必须遵守以下已有约束：
 
@@ -38,10 +38,10 @@
 
 | Capability baseline | Child change | 本文件任务库存 | 必需的验收证据 |
 | --- | --- | --- | --- |
-| `research/experiment-lifecycle` | `implement-experiment-lifecycle-recovery` | tasks 2 | 状态机、故障注入、恢复等价性与产物哈希 |
+| `research/experiment-lifecycle` | `implement-experiment-lifecycle-integrity` | tasks 2 | dataset 身份、run 终态与产物哈希 |
 | `qec/dataset-pipeline` | `implement-stim-dataset-pipeline` | tasks 3 | 真实数据 manifest、schema/shard/split 审计与供数 smoke |
 | `qec/decoder-workbench` | `integrate-pymatching-unified-decoder` | tasks 4.1–4.2 | 同 shots 预测、LER、置信区间与 protocol ID |
-| `research/data-efficient-training` 及神经训练部分 | `build-neural-training-workbench` | tasks 4.3–5.7 | 可恢复训练、统一对照、固定预算与多 seed 统计证据 |
+| `research/data-efficient-training` 及神经训练部分 | `build-neural-training-workbench` | tasks 4.3–5.7 | 统一对照、固定预算与多 seed 统计证据 |
 | `deployment/performance-runtime` 及工程交付 | `establish-engineering-delivery` | tasks 6、8.2–8.4 | fresh install、CLI/CI/Docker smoke、分层 benchmark 与等价性检查 |
 | `research/automated-validation` 及统计协议 | `establish-research-validation-protocol` | tasks 7、8.1 | claim→protocol→run→evidence 追踪与 evidence-insufficient 路径 |
 
@@ -57,13 +57,11 @@ child change 的 design 必须把稳定 requirement/scenario 名称映射到组�
 
 **替代方案：** 继续只维护 `OPTIMIZATION_PLAN.md`。该文件适合任务顺序和状态，但不适合长期保存稳定行为合同。
 
-恢复执行采用新 run，并通过 `resumed_from` 指向原 interrupted run；原 run 和原 checkpoint 保持不可变。这样保留每次进程执行的独立身份，也能重建完整中断与续跑链。
-
 ### 2. 按 gate 纵向交付，而不是按目录横向铺开
 
 实施顺序固定为：
 
-1. G0：实验生命周期、身份、恢复和产物不可变。
+1. G0：实验生命周期、身份和产物不可变。
 2. G1：Stim CPU、raw detector/observable schema、PyMatching 和 LER。
 3. G2/G3：科研 split、统计协议、统一训练与 decoder 对照。
 4. Thesis slice：数据高效训练与稀有困难样本。
@@ -152,7 +150,7 @@ AI 可以抽取论文主张、生成候选协议、调用已有 capability 和�
 每个 scenario 至少映射到以下一种验证：
 
 - unit：schema、身份、统计和纯函数；
-- integration：真实 backend、adapter、恢复链；
+- integration：真实 backend 与 adapter；
 - regression：固定 fixture 与数值容差；
 - smoke：正式 runner 的最小纵切面；
 - benchmark validation：多 seed、CI、尾延迟和资源报告。
@@ -175,7 +173,7 @@ AI 可以抽取论文主张、生成候选协议、调用已有 capability 和�
 
 1. 将本变更的六项 delta spec 评审为首个需求基线，并运行严格验证。
 2. 在现有文档中增加 OpenSpec 索引，明确需求、现状、选型、研究主题和任务进度的唯一职责。
-3. 先应用 `research/experiment-lifecycle` 中尚缺的 P0.14–P0.19 行为，完成恢复和产物不可变。
+3. 先应用 `research/experiment-lifecycle` 中尚缺的 P0.14 与 P0.19 行为，完成数据集身份和产物不可变。
 4. 应用 `qec/dataset-pipeline` 与 `qec/decoder-workbench` 的 G1 纵切面，完成 Stim→dataset→PyMatching→LER。
 5. 在 G1/G2/G3 后实现 `research/data-efficient-training` 的最小论文实验，并冻结协议后执行正式多 seed 运行。
 6. 根据 profiler 决定是否应用 GPU sampler、C++/CUDA runtime 或 FPGA adapter；每个后端单独建立 OpenSpec change。

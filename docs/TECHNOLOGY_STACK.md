@@ -160,8 +160,8 @@ NVIDIA 在 2026 年发布了 AI predecoder 与 PyMatching 组合的厂商研究�
 |---|---|---|
 | 电路级采样与经典解码 | Stim 生成电路、DEM 和 detector 样本；PyMatching 批量 MWPM；Sinter 负责兼容基准接口 | `QECProblem`、sampler/decoder protocol、observable 语义、统一 LER 与 provenance；同一批样本交叉校验。见 P1.2–P1.9。[Stim](https://github.com/quantumlib/Stim)、[PyMatching](https://github.com/oscarhiggott/PyMatching)、[Sinter API](https://github.com/quantumlib/Stim/blob/main/doc/sinter_api.md) |
 | Toric code-capacity 论文路径 | PyTorch tensor、`Dataset`/`DataLoader`、优化器和模块 | 论文特有的错误链、同调判定、RBM 能量、CD-k、Gibbs 更新及其正确性测试；不要把电路级 DEM 假装成该论文的数据模型。现有批次收拢见 P4.12。 |
-| 数据与训练 | PyTorch 管理模型、批次和优化步骤；大数据按 shard 加载 | schema、按生成规格标识的数据集、无泄漏 split、checkpoint 身份与随机状态、恢复一致性。见 P0.14/P0.16、P1.3/P1.4、P3.5。 |
-| 实验产物 | 标准库负责路径、哈希和原子写入 | `dataset_manifest.json` 与 `run_manifest.json` 的项目契约、完整终态和阶段产物不可变；续跑关系见 P0.15/P0.17–P0.19。 |
+| 数据与训练 | PyTorch 管理模型、批次和优化步骤；大数据按 shard 加载 | schema、按生成规格标识的数据集、无泄漏 split、checkpoint 身份与随机状态。见 P0.14、P1.3/P1.4、P3.5。 |
+| 实验产物 | 标准库负责路径、哈希和原子写入 | `dataset_manifest.json` 与 `run_manifest.json` 的项目契约、完整终态和阶段产物不可变；见 P0.19。 |
 
 ## 8. Python 包管理决策（2026-09-19）
 
