@@ -42,6 +42,14 @@ This is the project entry file for coding agents.
 
 ## OpenSpec Workflow
 
+This workflow requires the OpenSpec CLI, which is a global developer tool and not a project dependency:
+
+```bash
+npm install -g @fission-ai/openspec@1.13.1   # Node.js >= 20.19; pinned to the version that generated .agents/skills/
+```
+
+Delivery gates 3 and 6 below run `openspec validate --strict` and the verify workflow, so neither can be completed without it.
+
 - For behavior changes, inspect the relevant main spec and active changes before editing code. Create or update a proposal/spec/design/tasks set when no reviewed change covers the work.
 - Interpret the user's requested work scope using the intent rules below. Do not require the literal word apply when the user has already authorized implementation.
 - Map implementation to the scenario-level acceptance tests and the parent task ID in `docs/OPTIMIZATION_PLAN.md`.
