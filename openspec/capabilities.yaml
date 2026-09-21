@@ -1,0 +1,61 @@
+schema_version: "1.0"
+capabilities:
+  - id: governance/spec-management
+    status: validated
+    implementation: complete
+    spec: openspec/specs/governance/spec-management/spec.md
+    evidence:
+      - openspec/config.yaml
+      - AGENTS.md
+      - openspec/changes/archive/2026-09-22-bootstrap-contract-repository/verification.md
+    notes: OpenSpec workflow, archived canonical specs, strict validation, and verification evidence are present.
+
+  - id: research/experiment-lifecycle
+    status: planned
+    implementation: contracts-only
+    spec: openspec/specs/research/experiment-lifecycle/spec.md
+    evidence:
+      - ai_qec/experiment/
+    notes: Types and Protocols only; no persistence, state machine, or recovery implementation.
+
+  - id: qec/dataset-pipeline
+    status: planned
+    implementation: contracts-only
+    spec: openspec/specs/qec/dataset-pipeline/spec.md
+    evidence:
+      - ai_qec/data/
+      - ai_qec/qec/
+    notes: Types and Protocols only; no generator, identity hash, storage, registry, or resolver implementation.
+
+  - id: qec/decoder-workbench
+    status: planned
+    implementation: contracts-only
+    spec: openspec/specs/qec/decoder-workbench/spec.md
+    evidence:
+      - ai_qec/models/decoders/protocol.py
+    notes: Decoder request/result and Protocol only; no AI or classical decoder implementation.
+
+  - id: research/training-contracts
+    status: planned
+    implementation: contracts-only
+    spec: openspec/specs/research/training-contracts/spec.md
+    evidence:
+      - ai_qec/training/
+    notes: Configuration and checkpoint contracts only; no trainer or distributed runtime implementation.
+
+  - id: research/scientific-evaluation
+    status: planned
+    implementation: contracts-only
+    spec: openspec/specs/research/scientific-evaluation/spec.md
+    evidence:
+      - ai_qec/evaluation/scientific/
+    notes: Evaluation and gate contracts only; no metric or statistical decision implementation.
+
+  - id: research/paper-reproduction
+    status: planned
+    implementation: contracts-only
+    spec: openspec/specs/research/paper-reproduction/spec.md
+    evidence:
+      - ai_qec/paper/
+      - paper/srcs/ai_for_qec_workflow.ipynb
+    notes: Notebook orchestration source and Protocols only; no experiment runtime or paper reproduction result.

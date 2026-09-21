@@ -1,0 +1,30 @@
+schema: spec-driven
+
+context: |
+  Language: zh
+  All artifacts must be written in zh.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  This project is accuracy-first and performance-second.
+  Public interfaces are exported through ai_qec/notebook_api.py.
+  A contract scaffold is not an implemented capability.
+
+rules:
+  proposal:
+    - Keep the change bounded to one independently verifiable outcome.
+    - State explicit non-goals when future GPU, FPGA, ASIC, QPU, or orchestration work could be confused with current scope.
+  specs:
+    - Require observable failure behavior; silent fallback and silent noise approximation are forbidden.
+    - Do not treat file presence, Protocol definitions, or scaffold tests as implementation evidence.
+  design:
+    - Preserve vendor-neutral domain contracts and place third-party tools behind adapters.
+  tasks:
+    - Every task must name its verification command or observable evidence.
+
+operations:
+  apply:
+    guidance:
+      - Preserve immutable artifacts and terminal Attempt history.
+      - Update capability status only after implementation, tests, and verification evidence agree.
+  archive:
+    guidance:
+      - Run strict validation and record verification evidence before archiving.

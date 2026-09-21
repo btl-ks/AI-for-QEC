@@ -1,0 +1,51 @@
+schema_version: "0.1-contract"
+
+qec:
+  code_family: toric
+  distance: 3
+  rounds: 1
+  logical_basis: Z
+  circuit_family: code-capacity
+
+noise:
+  family: independent-phase-flip
+  parameters:
+    physical_error_rate: 0.05
+
+dataset:
+  generator: unspecified
+  generator_version: unspecified
+  backend_semantics: exact
+  train_samples: 1024
+  validation_samples: 256
+  test_samples: 256
+  seed: 42
+  split_policy: fixed
+  schema_version: qec-batch-v1
+
+model:
+  family: unspecified
+  architecture_version: unspecified
+
+training:
+  optimizer: unspecified
+  learning_rate: 0.001
+  epochs: 1
+  batch_size: 32
+  scheduler: none
+  loss: unspecified
+
+execution:
+  device: cpu
+  cpu_count: 1
+  gpu_count: 0
+  distributed: false
+  num_workers: 0
+  mixed_precision: false
+  compile_model: false
+
+scientific_evaluation:
+  baseline_decoder: mwpm
+  primary_metric: logical_error_rate
+  confidence_level: 0.95
+  tolerance: null  # 必须由具体研究 change 预注册后才能执行 Accuracy Gate。

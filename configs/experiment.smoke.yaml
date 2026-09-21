@@ -1,0 +1,22 @@
+# Interface-only smoke configuration. No runner exists in this bootstrap repository.
+schema_version: "0.1-contract"
+qec:
+  code_family: toric
+  distance: 3
+  rounds: 1
+  logical_basis: Z
+  circuit_family: code-capacity
+noise:
+  family: independent-phase-flip
+  parameters:
+    physical_error_rate: 0.05
+dataset:
+  generator: unspecified
+  generator_version: unspecified
+  backend_semantics: exact
+  train_samples: 32
+  validation_samples: 16
+  test_samples: 16
+  seed: 7
+  split_policy: fixed
+  schema_version: qec-batch-v1

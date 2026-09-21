@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.ipynb text eol=lf
+*.pt binary
+*.pth binary
+*.onnx binary
+*.h5 binary
+*.hdf5 binary
+*.zarr/** binary

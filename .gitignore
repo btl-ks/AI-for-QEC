@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+dist/
+build/
+
+# Runtime artifacts are immutable research outputs and are not source files.
+/datasets/
+/runs/
+/artifacts/
+/checkpoints/
+
+# Notebook and editor state.
+.ipynb_checkpoints/
+.idea/
+.vscode/

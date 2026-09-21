@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-for-qec.local/schemas/capabilities.schema.json",
+  "title": "AI-for-QEC capability registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "capabilities"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "implementation", "spec", "evidence"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+(?:/[a-z0-9-]+)*$"
+          },
+          "status": {
+            "enum": ["planned", "available", "validated"]
+          },
+          "implementation": {
+            "enum": ["none", "contracts-only", "partial", "complete"]
+          },
+          "spec": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
