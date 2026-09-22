@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling>=1.25"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-for-qec"
@@ -22,8 +22,10 @@ runtime = [
     "matplotlib>=3.8",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["ai_qec"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ai_qec*"]
+namespaces = true
 
 [tool.ruff]
 target-version = "py311"

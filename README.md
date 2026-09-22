@@ -45,7 +45,7 @@ objective 都会明确失败，不会静默回退 eager。
 ## 仓库结构
 
 - `openspec/`：正式需求、active changes、能力状态与验收依据。
-- `ai_qec/`：vendor-neutral 公共 contract，以及 adapter/实现层（`qec/codes`、`qec/backends/stim_noise.py`、`data/generators/stim_code_capacity.py`、`data/datasets/local.py`、`data/loaders/`、`models/`、`training/`、`evaluation/`、`experiment/local.py`、`paper/local_runtime.py`）。
+- `ai_qec/`：vendor-neutral 公共 contract，以及 adapter/实现层（`qec/codes`、`qec/backends/stim_noise.py`、`data/generators/stim_code_capacity.py`、`data/datasets/local.py`、`data/loaders/`、`models/`、`training/`、`evaluation/`、`experiment/local.py`、`paper/local_runtime.py`）。该源码树由 setuptools 按 PEP 420 隐式 namespace package 发现，不使用 `__init__.py`。
 - `configs/`：仅用于说明配置边界的示例；可执行配置见论文 Notebook。
 - `paper/srcs/`：论文 Notebook 源码；`ai_for_qec_workflow.ipynb` 复现 Torlai & Melko (2017)。
 - `tests/unit/`、`tests/integration/`：contract、实现与端到端 runtime 测试；缺少运行时依赖时相关测试自动跳过。
@@ -57,6 +57,8 @@ Notebook 和外部调用方的稳定导入入口是：
 ```python
 import ai_qec.notebook_api as qec
 ```
+
+中间目录不提供包级便捷导出；请使用上述 facade，或从定义符号的叶子模块显式导入。源码位于仓库根目录，因此在仓库根目录运行 Python 时可直接导入；正式分发仍应通过构建 wheel 并在仓库外验证。
 
 本地 runtime 通过依赖注入使用：
 
@@ -77,8 +79,10 @@ pip install -e ".[runtime]"
 ## 验证
 
 ```bash
-python -m unittest discover -s tests -v        # 在安装 runtime 依赖的环境（如 conda env quantum）运行全部测试
+python -m unittest discover -s tests/unit -v
+python -m unittest discover -s tests/integration -v  # 在安装 runtime 依赖的环境（如 conda env quantum）运行集成测试
 python -m compileall -q ai_qec tests
+uv build --wheel --no-build-isolation
 openspec validate --all --strict --no-interactive
 ```
 

@@ -39,7 +39,7 @@ Capability registry state
 - 不允许因为本文件描述了“目标架构”就直接宣称功能已实现。
 - 行为变化必须遵循 `AGENTS.md` 中的 OpenSpec workflow。
 - `openspec/capabilities.yaml` 只有在实现、测试和 verification evidence 一致时才能升级状态。
-- 所有新 public API 必须通过 `ai_qec/notebook_api.py` 暴露。
+- 所有新 public API 必须通过 `ai_qec/notebook_api.py`（导入名 `ai_qec.notebook_api`）暴露。
 - 不能用空文件、占位数组、零样本数据伪造成功 pipeline。
 - 正式科学结论必须由论文或项目内可审计实验结果支持。
 
@@ -1036,11 +1036,9 @@ AI-for-QEC/
 │   └── templates/verification.md
 │
 ├── ai_qec/                                        [E]
-│   ├── __init__.py
 │   ├── notebook_api.py                            [E]
 │   │
 │   ├── experiment/                                [N]
-│   │   ├── __init__.py
 │   │   ├── spec.py
 │   │   ├── plan.py
 │   │   ├── experiment.py

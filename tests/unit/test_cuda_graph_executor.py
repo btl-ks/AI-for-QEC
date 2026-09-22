@@ -14,7 +14,7 @@ except ImportError:
 class CUDAGraphExecutorTests(unittest.TestCase):
     def setUp(self) -> None:
         import ai_qec.notebook_api as qec
-        from ai_qec.training.executors import cuda_graph
+        import ai_qec.training.executors.cuda_graph as cuda_graph
 
         self.qec = qec
         self.cuda_graph = cuda_graph

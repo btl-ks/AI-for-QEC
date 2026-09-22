@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 
 import ai_qec.notebook_api as qec
-from ai_qec.utils import paths
+import ai_qec.utils.paths as paths
 
 
 class FindProjectRootTests(unittest.TestCase):
@@ -16,7 +16,7 @@ class FindProjectRootTests(unittest.TestCase):
 
     def test_falls_back_to_the_editable_source_checkout(self) -> None:
         outside = Path(tempfile.mkdtemp())
-        self.assertEqual(qec.find_project_root(outside), Path(paths.__file__).resolve().parents[2])
+        self.assertEqual(qec.find_project_root(outside), Path.cwd().resolve())
 
     def test_raises_when_neither_location_is_a_project(self) -> None:
         outside = Path(tempfile.mkdtemp())

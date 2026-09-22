@@ -10,6 +10,18 @@ capabilities:
       - openspec/changes/archive/2026-09-22-bootstrap-contract-repository/verification.md
     notes: OpenSpec workflow, archived canonical specs, strict validation, and verification evidence are present.
 
+  - id: governance/python-packaging
+    status: validated
+    implementation: complete
+    spec: openspec/specs/governance/python-packaging/spec.md
+    evidence:
+      - pyproject.toml
+      - ai_qec/notebook_api.py
+      - tests/unit/test_packaging.py
+      - openspec/changes/archive/2026-09-23-use-root-namespace-layout/evidence/wheel-inspection.json
+      - openspec/changes/archive/2026-09-23-use-root-namespace-layout/verification.md
+    notes: Setuptools root layout with ai_qec-only discovery, implicit namespaces, zero __init__.py files, preserved public facade exports, and isolated wheel installation are verified.
+
   - id: governance/technology-selection
     status: validated
     implementation: complete

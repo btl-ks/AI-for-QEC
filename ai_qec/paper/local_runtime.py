@@ -62,7 +62,7 @@ from ai_qec.experiment.streams import DerivedRandomStreams
 from ai_qec.implementations import load_builtin_implementations
 from ai_qec.qec.noise import NoiseApproximation
 from ai_qec.registries import DECODERS, LOSSES, OPTIMIZERS
-from ai_qec.reporting import figures
+import ai_qec.reporting.figures as figures
 from ai_qec.training.checkpoint.model import ModelCheckpoint
 from ai_qec.training.checkpoint.recovery import TrainingRecoveryCheckpoint
 from ai_qec.training.execution import ResolvedExecutionPlan

@@ -30,7 +30,7 @@ from ai_qec.registries import (
 from ai_qec.training.checkpoint.model import ModelCheckpoint
 from ai_qec.training.checkpoint.recovery import TrainingRecoveryCheckpoint
 from ai_qec.training.execution import ExecutionSpec
-from ai_qec.training.executors import (
+from ai_qec.training.executors.protocol import (
     TrainingStepContext,
     TrainingStepEvidence,
     TrainingStepExecutor,
