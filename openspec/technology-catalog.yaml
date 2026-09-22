@@ -58,6 +58,18 @@ decisions:
     alternatives: []
     rationale: PyTorch with CUDA is the selected model training runtime. Partial - single process, single device, float32; DDP, AMP and torch.compile are rejected.
 
+  - component: training-step-executor
+    primary:
+      id: pytorch-cuda-graph
+      version: "1"
+      implementation: validated
+    alternatives:
+      - id: pytorch-eager
+        version: "1"
+        implementation: validated
+        phase: reference-baseline
+    rationale: Direct PyTorch CUDA Graph captures loss, backward and optimizer update behind a model-neutral Registry contract. The existing DataLoader keeps per-minibatch H2D transfer; no full training split is resident on GPU, and capture failures never fall back to eager.
+
   - component: decoder-cpu
     primary:
       id: pymatching-cpu-decoder
@@ -129,4 +141,3 @@ decisions:
         implementation: none
         phase: deferred
     rationale: Keep syndrome batches GPU-resident and avoid GPU-to-CPU-to-GPU transfers.
-

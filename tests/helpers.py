@@ -74,6 +74,8 @@ def tiny_config(**overrides: object) -> dict[str, object]:
             "num_workers": 0,
             "mixed_precision": False,
             "compile_model": False,
+            "step_executor": "pytorch-eager",
+            "step_executor_options": {},
         },
         "data_pipeline": {
             "cpu_to_gpu": {

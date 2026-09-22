@@ -3,7 +3,8 @@
 - 日期：2026-09-22
 - 代码版本：`4a1d2ff`（分支 `feat/torlai-melko-reproduction`）
 - 范围：数据集生成、RBM 训练、RBM Gibbs 解码（GPU 推理）、PyMatching（CPU 传统算法回测）
-- 性质：分析记录，不是 capability 证据。文中的优化建议都**尚未实现**；任何行为变更都必须走 OpenSpec change。
+- 性质：分析记录；capability 的验收证据见对应 OpenSpec change。第 3 节已补充
+  `add-pytorch-cuda-graph-training-step` 的真实实现结果，其余优化建议仍未实现。
 
 ## 结论摘要
 
@@ -13,6 +14,9 @@
 4. 在当前规模（L≤6）下，PyMatching 不是瓶颈。
 5. 性能 Stage 报告的"RBM 比 PyMatching 慢 180–7096 倍"很大程度上是测量批量太小（1000 shots）造成的，不能直接当作算法之间的吞吐比较。
 6. 最大的单次墙钟损失（约 7.6 小时）来自主机睡眠，而不是计算。
+7. 训练步 CUDA Graph 已按平台 contract 实现。在相同 L=6、batch 100、CD-10 配置下，
+   steady step 为 0.350 ms（eager 2.265 ms，快 6.47 倍）；保留逐 batch H2D 的完整
+   3 epoch Training Stage 为 1.529 s（eager 7.618 s，端到端快 4.98 倍）。
 
 ## 1. 数据与方法
 
@@ -58,18 +62,58 @@ L=6（72 + 36 个可见单元、128 个隐藏单元），CD-10：
 
 | 设备 | batch | 每步耗时 | 样本/s | 每个 epoch（10 万样本） |
 |---|---|---|---|---|
-| GPU（eager） | 100 | 2.00 ms | 50,105 | 2.00 s |
+| GPU（eager，旧原型） | 100 | 2.00 ms | 50,105 | 2.00 s |
 | GPU（eager） | 1,000 | 1.98 ms | 504,072 | 0.20 s |
 | GPU（eager） | 10,000 | 3.30 ms | 3,034,185 | 0.03 s |
 | CPU，1 线程 | 100 | 2.81 ms | 35,568 | 2.81 s |
 | CPU，1 线程 | 1,000 | 25.6 ms | 39,038 | 2.56 s |
-| GPU，CUDA Graph | 100 | 0.313 ms | 约 320,000 | 0.31 s |
+| GPU（eager，当前平台） | 100 | 2.265 ms | 44,154 | 2.265 s |
+| GPU（CUDA Graph，当前平台） | 100 | 0.350 ms | 285,883 | 0.350 s |
 
 - 每个训练步约发起 130 个 CUDA kernel（`torch.profiler` 统计），对应的循环在 [pytorch_trainer.py:166-172](../../ai_qec/training/trainers/pytorch_trainer.py#L166-L172)。batch 放大 10 倍，每步耗时不变，说明 GPU 在等待 kernel 启动。
 - 模型大小同样不影响每步耗时：L=4 的模型更小，但每个 epoch 中位耗时为 2.7 s，与 L=6 的 2.2 s 在同一量级。
-- 用 CUDA Graph 捕获整个训练步（前向、反向和 optimizer）后，每步从 2.03 ms 降到 0.313 ms，快 6.5 倍。
+- 当前平台实现用 CUDA Graph 捕获整个 loss、backward 和 optimizer update；使用 64 个内容不同、
+  shape 相同的 device minibatch 测得每步从 2.265 ms 降到 0.350 ms，快 6.47 倍。
 
-### 3.2 每个 epoch 的其他开销
+### 3.2 CUDA Graph 平台实现与端到端结果（2026-09-22）
+
+可复现命令：
+
+```bash
+/home/zephy/miniconda3/envs/quantum/bin/python \
+  openspec/changes/archive/2026-09-22-add-pytorch-cuda-graph-training-step/evidence/benchmark_cuda_graph_training_step.py \
+  --steps 1000 --output /tmp/ai-qec-cuda-graph-benchmark.json
+```
+
+环境仍为本文第 1 节的 RTX 4060 Laptop GPU、PyTorch 2.14.0+cu130。微基准使用
+L=6 对应的 72 个 error unit、36 个 syndrome unit、128 个 hidden unit、batch 100 和
+CD-10；不是重复同一 batch，而是在 64 个内容不同的 device batch 间循环。
+
+| 项 | 实测 |
+|---|---:|
+| eager 完整训练步 | 2.265 ms/step |
+| executor 静态 batch D2D copy | 0.0237 ms/batch |
+| 首次 capture + capture minibatch 的首次 launch | 7.494 ms |
+| steady copy + replay | 0.350 ms/step |
+| steady replay 的 host submit（不含 GPU 完成等待） | 0.236 ms/step |
+| steady step 加速 | 6.47× |
+
+完整 Training Stage 使用正常 `pytorch-dataloader-h2d`，每个 minibatch 仍从 CPU 逐批传到
+CUDA；训练集没有常驻 GPU。两条路径均训练 100,000 个样本、3 epoch、共 3,000 个 step：
+
+| executor | Experiment | Training Stage | capture / replay | Accuracy Gate |
+|---|---|---:|---:|---|
+| `pytorch-eager` | `cuda-graph-benchmark-pytorch-eager-574e818b95f2` | 7.618 s | 0 / 0 | PASS |
+| `pytorch-cuda-graph` | `cuda-graph-benchmark-pytorch-cuda-graph-07974c5fde63` | 1.529 s | 1 / 2,998 | PASS |
+
+端到端 Training Stage 加速为 4.98×，低于纯训练步 6.47×，差额来自 DataLoader/H2D、
+epoch 监控和 checkpoint 等未捕获开销。两个 Experiment 复用了同一个不可变 DatasetArtifact
+`ds-8a7f272efa07384a7711`，但没有复用训练或科学评估；二者分别执行了 Scientific Evaluation
+与 Accuracy Gate。本次确定性配置的 ModelCheckpoint checksum 恰好相同：
+`sha256:aaca87a883ae78239275b2da6fe02c016476372aaa13119bc1218234a55f0e6c`。这是一条本机验证证据，
+不构成对所有模型或 CUDA/PyTorch 版本逐位一致的承诺。
+
+### 3.3 每个 epoch 的其他开销
 
 | 项 | 耗时 | 占 epoch（约 2.2 s）的比例 |
 |---|---|---|
@@ -77,9 +121,10 @@ L=6（72 + 36 个可见单元、128 个隐藏单元），CD-10：
 | TrainingRecoveryCheckpoint 保存 + sha256 | 1.1 ms（66 KB） | 小于 0.1% |
 | 重建误差监控（1 万训练样本 + 1 万验证样本） | 毫秒级 | 可忽略 |
 
-如果启用 CUDA Graph，DataLoader 的 169 µs 会超过训练步本身的一半，成为下一个瓶颈。L=6 的训练集（100000 × 108 个 uint8）只有约 10.8 MB，完全可以常驻 GPU，在 GPU 上按同一个排列取 batch。
+启用 CUDA Graph 后，DataLoader/H2D 成为更显著的剩余开销。但平台实现明确继续使用现有
+逐 batch H2D contract；完整训练集常驻 GPU 不属于本 change，也不作为通用平台方案。
 
-### 3.3 并发扩展（为 `add-local-experiment-queue` task 4.1 提供数据）
+### 3.4 并发扩展（为 `add-local-experiment-queue` task 4.1 提供数据）
 
 同时运行 N 个独立进程，每个进程执行相同的 L=6、batch 100 训练步：
 
@@ -173,11 +218,13 @@ L=6（72 + 36 个可见单元、128 个隐藏单元），CD-10：
 
 ## 8. 优化建议
 
-以下均**未实现**。凡是会改变运行行为的项，都必须通过 OpenSpec change 引入；凡是会改变 RNG 消耗或计算路径的项，都必须重新通过 Accuracy Gate，并让 Stage 复用键能区分新旧实现。
+除第一项已通过 `add-pytorch-cuda-graph-training-step` 实现外，以下其余项均未实现。凡是会改变
+运行行为的项，都必须通过 OpenSpec change 引入；凡是会改变 RNG 消耗或计算路径的项，都必须
+重新通过 Accuracy Gate，并让 Stage 复用键能区分新旧实现。
 
 | 优先级 | 措施 | 预期收益（本机，L=6） | 对科学结果的影响 |
 |---|---|---|---|
-| 1 | 训练步用 CUDA Graph，训练数据常驻 GPU | 训练约 91 s → 约 14 s | 每步计算相同，但 RNG 不保证与 eager 逐位一致。目前 `compile_model` 等选项在规划阶段就会被拒绝，需要扩展 execution contract |
+| 已实现 | 训练步用 CUDA Graph；保留逐 batch H2D | 当前 3 epoch Stage 7.618 s → 1.529 s（4.98×） | 独立 Experiment、训练与科学评估；重新通过 Accuracy Gate。没有训练集常驻 GPU |
 | 2 | 队列并发（`add-local-experiment-queue`） | GPU：最多 2 个 worker，1.55 倍；CPU 训练 8 个进程：约 4 倍 | GPU worker 不改变结果。CPU 训练会改变 `execution.device`，即改变 Experiment 身份和 RNG 流；解码仍必须在 GPU 上 |
 | 3 | Gibbs 解码每隔 N 步剔除已收敛的链，按行数分档使用 CUDA Graph | 科学评估约 7 s → 估计 1–1.5 s（未实测） | 改变 RNG 消耗，需要重新过 Gate |
 | 4 | 性能 Stage 报告"耗时–shots"曲线，或增加 shots，并单独报告尾部链（`max_steps`）的影响 | 消除误导性的吞吐比值 | 无 |
@@ -190,5 +237,6 @@ L=6（72 + 36 个可见单元、128 个隐藏单元），CD-10：
 
 - 所有数字来自一台 WSL2 笔记本。WSL 的 GPU 半虚拟化会放大 kernel 启动延迟和多进程上下文切换的成本，原生 Linux 或服务器 GPU 上的比例可能不同。
 - 训练和解码的微基准使用随机输入与随机初始化的 RBM，以及固定的 L=6 形状；解码的每步耗时与模型参数无关，但接受步数的分布来自真实评估记录（第 4.1 节）。
-- CUDA Graph 与多进程的数字只测了吞吐，没有验证训练结果是否与 eager 实现一致。
+- CUDA Graph 当前数字同时覆盖微基准和真实 Training Stage，并在该确定性配置下验证了恢复、
+  ModelCheckpoint checksum、Scientific Evaluation 与 Accuracy Gate；其他模型与版本仍需各自验证。
 - 第 4.3 节中 1 万 shots 的 RBM 吞吐是按"耗时与 shots 基本无关"推算的，没有在性能 Stage 中实测。

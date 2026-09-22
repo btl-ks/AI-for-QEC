@@ -64,6 +64,8 @@ ALLOWED_KEYS: Mapping[str, frozenset[str]] = {
             "num_workers",
             "mixed_precision",
             "compile_model",
+            "step_executor",
+            "step_executor_options",
         }
     ),
     "data_pipeline": frozenset({"cpu_to_gpu"}),
@@ -100,6 +102,7 @@ REQUIRED_SELECTIONS = (
     "training.scheduler",
     "training.loss",
     "execution.trainer_framework",
+    "execution.step_executor",
     "scientific_evaluation.baseline_decoders",
     "data_pipeline.cpu_to_gpu.technology",
 )
@@ -267,6 +270,10 @@ def parse_experiment_config(config: Mapping[str, object]) -> ExperimentConfigura
         mixed_precision=_get(execution, "execution", "mixed_precision", bool),
         compile_model=_get(execution, "execution", "compile_model", bool),
         trainer_framework=_get(execution, "execution", "trainer_framework", str),
+        step_executor=_get(execution, "execution", "step_executor", str),
+        step_executor_options=dict(
+            _get(execution, "execution", "step_executor_options", Mapping)
+        ),
     )
     evaluation_spec = ScientificEvaluationSpec(
         baseline_decoders=tuple(

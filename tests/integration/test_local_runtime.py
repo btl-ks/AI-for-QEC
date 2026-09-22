@@ -5,6 +5,13 @@ from unittest import mock
 
 from tests.helpers import requires_runtime, run_workflow, tiny_config
 
+try:
+    import torch as _torch
+
+    HAS_CUDA = _torch.cuda.is_available()
+except ImportError:
+    HAS_CUDA = False
+
 
 def _stage_statuses(run) -> dict[str, str]:
     from ai_qec.paper.local_runtime import STAGE_ORDER
@@ -51,6 +58,11 @@ class LocalRuntimeTests(unittest.TestCase):
         self.assertIsNotNone(performance)
         self.assertEqual(len(figures), 3)
         self.assertTrue(all(self.runtime.artifact_path(ref).is_file() for ref in figures))
+        step = _stage_metadata(run, "training")["step_executor"]
+        self.assertEqual(step["requested_executor"], "pytorch-eager")
+        self.assertEqual(step["observed_executor"], "pytorch-eager")
+        self.assertEqual(step["implementation_version"], "1")
+        self.assertFalse(step["fallback_observed"])
 
         again = run_workflow(self.runtime, tiny_config())
         second = again[0]
@@ -110,6 +122,138 @@ class LocalRuntimeTests(unittest.TestCase):
         for name in straight:
             self.assertTrue(torch.equal(resumed[name], straight[name]), name)
         self.assertEqual(model.model_identity, reference_model.model_identity)
+        payload = torch.load(
+            sorted((run.directory / "checkpoints" / "recovery").glob("*.pt"))[-1],
+            map_location="cpu",
+            weights_only=True,
+        )
+        self.assertEqual(payload["step_executor"], "pytorch-eager")
+        self.assertEqual(payload["step_executor_version"], "1")
+        self.assertTrue(payload["step_executor_options_digest"].startswith("sha256:"))
+        self.assertFalse(any("graph" in key or "static_input" in key for key in payload))
+
+    @unittest.skipUnless(HAS_CUDA, "requires a CUDA-capable PyTorch runtime")
+    def test_cuda_graph_training_recovers_with_new_capture_and_same_result(self) -> None:
+        import torch
+
+        from ai_qec.training.trainers.pytorch_trainer import PyTorchTrainer
+
+        config = tiny_config(
+            **{
+                "dataset.train_samples": 200,
+                "dataset.validation_samples": 50,
+                "dataset.test_samples": 100,
+                "training.epochs": 3,
+                "execution.device": "cuda",
+                "execution.gpu_count": 1,
+                "execution.step_executor": "pytorch-cuda-graph",
+                "execution.step_executor_options": {"max_graphs": 2},
+            }
+        )
+        reference_runtime = self.qec.LocalNotebookPlatform(Path(tempfile.mkdtemp()), verbose=False)
+        _, reference_model, *_ = run_workflow(reference_runtime, config)
+
+        original = PyTorchTrainer.after_epoch
+
+        def interrupt_after_first_epoch(trainer, epoch, record):
+            original(trainer, epoch, record)
+            if epoch == 1:
+                raise KeyboardInterrupt
+
+        with (
+            mock.patch.object(PyTorchTrainer, "after_epoch", interrupt_after_first_epoch),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            run_workflow(self.runtime, config)
+
+        run, resumed_model, *_ = run_workflow(self.runtime, config)
+        metadata = _stage_metadata(run, "training")
+        evidence = metadata["step_executor"]
+        self.assertEqual(evidence["requested_executor"], "pytorch-cuda-graph")
+        self.assertEqual(evidence["observed_executor"], "pytorch-cuda-graph")
+        self.assertGreaterEqual(evidence["capture_count"], 1)
+        self.assertGreaterEqual(evidence["replay_steps"], 1)
+        self.assertFalse(evidence["fallback_observed"])
+        self.assertEqual(metadata["resumed_from"]["epoch"], 1)
+        self.assertEqual(
+            metadata["transfer_evidence"]["target_layout"]["residency"], "cuda-device"
+        )
+
+        resumed = torch.load(
+            self.runtime.artifact_path(_checkpoint(resumed_model)), weights_only=True
+        )["state_dict"]
+        straight = torch.load(
+            reference_runtime.artifact_path(_checkpoint(reference_model)), weights_only=True
+        )["state_dict"]
+        for name in straight:
+            self.assertTrue(torch.equal(resumed[name], straight[name]), name)
+
+        recovery = torch.load(
+            sorted((run.directory / "checkpoints" / "recovery").glob("*.pt"))[-1],
+            map_location="cpu",
+            weights_only=True,
+        )
+        reference_run = reference_runtime.create_experiment(config).experiment.attempt(
+            "attempt-0001"
+        )
+        reference_recovery = torch.load(
+            sorted((reference_run.directory / "checkpoints" / "recovery").glob("*.pt"))[-1],
+            map_location="cpu",
+            weights_only=True,
+        )
+        self.assertEqual(recovery["step_executor"], "pytorch-cuda-graph")
+        self.assertFalse(any("graph" in key or "static_input" in key for key in recovery))
+        self.assertEqual(recovery["global_step"], reference_recovery["global_step"])
+        self.assertTrue(torch.equal(recovery["gibbs_state"], reference_recovery["gibbs_state"]))
+        self.assertTrue(
+            torch.equal(recovery["shuffle_state"], reference_recovery["shuffle_state"])
+        )
+
+        def stable_history(payload):
+            return [
+                {key: value for key, value in item.items() if key not in ("seconds", "attempt_id")}
+                for item in payload["history"]
+            ]
+
+        self.assertEqual(stable_history(recovery), stable_history(reference_recovery))
+
+    @unittest.skipUnless(HAS_CUDA, "requires a CUDA-capable PyTorch runtime")
+    def test_cuda_graph_capture_failure_fails_stage_without_model_fallback(self) -> None:
+        from ai_qec.registries import LOSSES
+        from ai_qec.training.executors.cuda_graph import CUDAGraphExecutionError
+
+        config = tiny_config(
+            **{
+                "dataset.train_samples": 200,
+                "dataset.validation_samples": 50,
+                "dataset.test_samples": 100,
+                "training.epochs": 1,
+                "execution.device": "cuda",
+                "execution.gpu_count": 1,
+                "execution.step_executor": "pytorch-cuda-graph",
+                "execution.step_executor_options": {"max_graphs": 2},
+            }
+        )
+
+        def unsafe_objective(network, visible, generator):
+            scale = float(visible.sum().item())
+            return network.free_energy(visible).mean() + scale * 0.0
+
+        with mock.patch.object(LOSSES, "build", return_value=unsafe_objective):
+            experiment = self.runtime.create_experiment(config)
+            run = experiment.start_or_recover()
+            dataset = run.resolve_dataset()
+            with self.assertRaises(CUDAGraphExecutionError):
+                run.train(dataset)
+
+        record = run._attempt.stages.get(run.attempt_id, "training")
+        self.assertEqual(record.status.value, "failed")
+        self.assertIn("CUDA error", record.error)
+        self.assertFalse((run.directory / "checkpoints" / "model" / "final.pt").exists())
+        evidence = _stage_metadata(run, "training")["step_executor"]
+        self.assertEqual(evidence["observed_executor"], "pytorch-cuda-graph")
+        self.assertFalse(evidence["fallback_observed"])
+        self.assertEqual(evidence["capture_count"], 0)
 
     def test_modified_model_checkpoint_is_not_reused(self) -> None:
         _, model, *_ = run_workflow(self.runtime, tiny_config())
@@ -216,6 +360,23 @@ class LocalRuntimeTests(unittest.TestCase):
                 tiny_config(**{"execution.distributed": True}),
                 qec.ExecutionConfigurationError,
             ),
+            "unknown step executor": (
+                tiny_config(**{"execution.step_executor": "other"}),
+                qec.ConfigurationError,
+            ),
+            "graph on cpu": (
+                tiny_config(
+                    **{
+                        "execution.step_executor": "pytorch-cuda-graph",
+                        "execution.step_executor_options": {"max_graphs": 1},
+                    }
+                ),
+                qec.ExecutionConfigurationError,
+            ),
+            "eager option": (
+                tiny_config(**{"execution.step_executor_options": {"max_graphs": 1}}),
+                qec.ExecutionConfigurationError,
+            ),
             "unknown key": (tiny_config(**{"training.warmup": 3}), qec.ConfigurationError),
             "gate baseline": (
                 tiny_config(**{"accuracy_gate.baseline_decoder": "other"}),
@@ -234,7 +395,14 @@ class LocalRuntimeTests(unittest.TestCase):
         for name, (config, error) in cases.items():
             with self.subTest(case=name), self.assertRaises(error):
                 self.runtime.create_experiment(config)
-        cuda = tiny_config(**{"execution.device": "cuda", "execution.gpu_count": 1})
+        cuda = tiny_config(
+            **{
+                "execution.device": "cuda",
+                "execution.gpu_count": 1,
+                "execution.step_executor": "pytorch-cuda-graph",
+                "execution.step_executor_options": {"max_graphs": 1},
+            }
+        )
         with (
             mock.patch("torch.cuda.is_available", return_value=False),
             self.assertRaisesRegex(qec.ExecutionConfigurationError, "refusing to fall back to CPU"),

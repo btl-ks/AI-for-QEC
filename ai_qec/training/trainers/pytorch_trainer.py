@@ -20,14 +20,26 @@ from ai_qec.data.pipeline import TransferEvidence
 from ai_qec.data.schema.batch import QECBatch
 from ai_qec.experiment.artifact import ArtifactKind, ArtifactRef
 from ai_qec.models.spec import ModelSpec
-from ai_qec.registries import LOSSES, OPTIMIZERS, SCHEDULERS, TRAINERS
+from ai_qec.registries import (
+    LOSSES,
+    OPTIMIZERS,
+    SCHEDULERS,
+    TRAINERS,
+    TRAINING_STEP_EXECUTORS,
+)
 from ai_qec.training.checkpoint.model import ModelCheckpoint
 from ai_qec.training.checkpoint.recovery import TrainingRecoveryCheckpoint
 from ai_qec.training.execution import ExecutionSpec
+from ai_qec.training.executors import (
+    TrainingStepContext,
+    TrainingStepEvidence,
+    TrainingStepExecutor,
+    TrainingStepPlan,
+)
 from ai_qec.training.spec import TrainingSpec
 from ai_qec.utils.hashing import sha256_file
 
-RECOVERY_SCHEMA = "pytorch-training-recovery-v1"
+RECOVERY_SCHEMA = "pytorch-training-recovery-v2"
 RECOVERY_CONTENTS = {
     "includes_optimizer": True,
     "includes_scheduler": True,
@@ -64,6 +76,7 @@ class TrainingOutcome:
     history: tuple[Mapping[str, object], ...]
     transfer_evidence: TransferEvidence
     resumed_from: TrainingRecoveryCheckpoint | None
+    step_evidence: TrainingStepEvidence
 
 
 def _slice(batch: QECBatch, count: int) -> QECBatch:
@@ -138,6 +151,15 @@ class PyTorchTrainer:
         gibbs = torch.Generator(device=device).manual_seed(
             context.streams.describe("training_gibbs").derived_seed
         )
+        step_plan = TRAINING_STEP_EXECUTORS.build(
+            execution.step_executor,
+            device=str(device),
+            options=execution.step_executor_options,
+        )
+        if not isinstance(step_plan, TrainingStepPlan):
+            raise TypeError(
+                f"training step factory {execution.step_executor!r} did not return a plan"
+            )
 
         monitor = {
             "train": self._visible(_slice(train_batch, context.monitor_samples)),
@@ -155,6 +177,25 @@ class PyTorchTrainer:
                 identity,
                 dataset,
                 device,
+                step_plan,
+            )
+
+        step_executor = TRAINING_STEP_EXECUTORS.build(
+            execution.step_executor,
+            device=str(device),
+            options=execution.step_executor_options,
+            context=TrainingStepContext(
+                model=network,
+                visible=family.visible,
+                objective=objective,
+                optimizer=optimizer,
+                generator=gibbs,
+                device=str(device),
+            ),
+        )
+        if not isinstance(step_executor, TrainingStepExecutor):
+            raise TypeError(
+                f"training step factory {execution.step_executor!r} did not return an executor"
             )
 
         recovery_checkpoints: list[TrainingRecoveryCheckpoint] = []
@@ -169,11 +210,8 @@ class PyTorchTrainer:
                 generator=shuffle,
                 fields=family.input_fields,
             ):
-                loss = objective(network, family.visible(tensors), gibbs)
-                optimizer.zero_grad(set_to_none=True)
-                loss.backward()
-                optimizer.step()
-                objective_sum += loss.detach()
+                result = step_executor.step(tensors)
+                objective_sum += result.loss.detach()
                 batches += 1
                 global_step += 1
             scheduler.step()
@@ -204,9 +242,13 @@ class PyTorchTrainer:
                     dataset,
                     device,
                     attempt_id,
+                    step_plan,
                 )
             )
             self.after_epoch(epoch, record)
+
+        step_executor.finalize()
+        step_evidence = step_executor.evidence()
 
         payload = family.payload(
             network, model_spec, widths=widths, dataset_artifact_id=dataset.artifact_id
@@ -240,6 +282,7 @@ class PyTorchTrainer:
             history=tuple(history),
             transfer_evidence=context.pipeline.loader_evidence(train_batch, training.batch_size),
             resumed_from=context.resume_from,
+            step_evidence=step_evidence,
         )
 
     def _visible(self, batch: QECBatch):
@@ -271,6 +314,7 @@ class PyTorchTrainer:
         dataset,
         device,
         attempt_id,
+        step_plan,
     ) -> TrainingRecoveryCheckpoint:
         payload = {
             "schema_version": RECOVERY_SCHEMA,
@@ -279,6 +323,9 @@ class PyTorchTrainer:
             "model_identity": identity,
             "dataset_artifact_id": dataset.artifact_id,
             "device_type": device.type,
+            "step_executor": step_plan.executor_id,
+            "step_executor_version": step_plan.implementation_version,
+            "step_executor_options_digest": step_plan.options_digest,
             "model_state": {
                 name: tensor.detach().cpu().clone() for name, tensor in network.state_dict().items()
             },
@@ -302,6 +349,9 @@ class PyTorchTrainer:
                 "global_step": global_step,
                 "model_identity": identity,
                 "dataset_artifact_id": dataset.artifact_id,
+                "step_executor": step_plan.executor_id,
+                "step_executor_version": step_plan.implementation_version,
+                "step_executor_options_digest": step_plan.options_digest,
                 "includes": dict(RECOVERY_CONTENTS),
             },
         )
@@ -317,7 +367,17 @@ class PyTorchTrainer:
         )
 
     def _restore(
-        self, checkpoint, network, optimizer, scheduler, shuffle, gibbs, identity, dataset, device
+        self,
+        checkpoint,
+        network,
+        optimizer,
+        scheduler,
+        shuffle,
+        gibbs,
+        identity,
+        dataset,
+        device,
+        step_plan,
     ):
         path = self.context.resolve_uri(checkpoint.uri)
         if not path.is_file() or sha256_file(path) != checkpoint.checksum:
@@ -338,7 +398,23 @@ class PyTorchTrainer:
             )
         if payload["device_type"] != device.type:
             raise TrainingRecoveryError(
-                f"{checkpoint.checkpoint_id} was written on {payload['device_type']}; cannot resume on {device.type}"
+                f"{checkpoint.checkpoint_id} was written on {payload['device_type']}; "
+                f"cannot resume on {device.type}"
+            )
+        observed_executor = (
+            payload.get("step_executor"),
+            payload.get("step_executor_version"),
+            payload.get("step_executor_options_digest"),
+        )
+        expected_executor = (
+            step_plan.executor_id,
+            step_plan.implementation_version,
+            step_plan.options_digest,
+        )
+        if observed_executor != expected_executor:
+            raise TrainingRecoveryError(
+                f"{checkpoint.checkpoint_id} executor metadata {observed_executor!r} "
+                f"does not match requested {expected_executor!r}"
             )
         network.load_state_dict(payload["model_state"])
         optimizer.load_state_dict(payload["optimizer_state"])

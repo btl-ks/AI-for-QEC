@@ -16,6 +16,7 @@ OPTIMIZERS = Registry[object]("training.optimizer")
 SCHEDULERS = Registry[object]("training.scheduler")
 LOSSES = Registry[object]("training.loss")
 TRAINERS = Registry[object]("execution.trainer_framework")
+TRAINING_STEP_EXECUTORS = Registry[object]("execution.step_executor")
 DECODERS = Registry[object]("scientific_evaluation.baseline_decoders")
 CPU_TO_GPU_PIPELINES = Registry[object]("data_pipeline.cpu_to_gpu.technology")
 GPU_TO_GPU_PIPELINES = Registry[object]("data_pipeline.gpu_to_gpu.technology")
@@ -33,6 +34,7 @@ REGISTRIES_BY_PATH: Mapping[str, Registry[object]] = MappingProxyType(
         SCHEDULERS.name: SCHEDULERS,
         LOSSES.name: LOSSES,
         TRAINERS.name: TRAINERS,
+        TRAINING_STEP_EXECUTORS.name: TRAINING_STEP_EXECUTORS,
         DECODERS.name: DECODERS,
         CPU_TO_GPU_PIPELINES.name: CPU_TO_GPU_PIPELINES,
         GPU_TO_GPU_PIPELINES.name: GPU_TO_GPU_PIPELINES,

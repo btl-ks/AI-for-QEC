@@ -5,6 +5,9 @@ import platform
 import sys
 
 from ai_qec.config_validation import ConfigurationError
+from ai_qec.registries import TRAINING_STEP_EXECUTORS
+from ai_qec.registry import RegistryError
+from ai_qec.training.executors import TrainingStepPlan
 from ai_qec.utils.hashing import sha256_json
 
 from .execution import ExecutionSpec, ResolvedExecutionPlan
@@ -77,6 +80,19 @@ class LocalExecutionPlanner:
                 "unsupported execution configuration:\n  - " + "\n  - ".join(errors)
             )
 
+        try:
+            step_plan = TRAINING_STEP_EXECUTORS.build(
+                spec.step_executor,
+                device=device,
+                options=spec.step_executor_options,
+            )
+        except (ConfigurationError, RegistryError) as error:
+            raise ExecutionConfigurationError(str(error)) from error
+        if not isinstance(step_plan, TrainingStepPlan):
+            raise ExecutionConfigurationError(
+                f"[execution.step_executor] {spec.step_executor!r} did not produce a validated plan"
+            )
+
         return ResolvedExecutionPlan(
             device=device,
             world_size=1,
@@ -88,4 +104,8 @@ class LocalExecutionPlanner:
             compile_model=False,
             environment_digest=sha256_json(self.environment(device)),
             trainer_framework=spec.trainer_framework,
+            step_executor=step_plan.executor_id,
+            step_executor_version=step_plan.implementation_version,
+            step_executor_options=dict(step_plan.options),
+            step_executor_options_digest=step_plan.options_digest,
         )

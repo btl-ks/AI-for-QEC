@@ -29,6 +29,7 @@ CHANGES = {
     "training.epochs": 4,
     "experiment.master_seed": 12,
     "execution.device": "cuda",
+    "execution.step_executor": "pytorch-cuda-graph",
 }
 
 
@@ -77,6 +78,21 @@ class StageReuseKeyTests(unittest.TestCase):
         config = tiny_config()
         stage_reuse_key("training", config, (DATASET,))
         self.assertEqual(config, tiny_config())
+
+    def test_step_executor_separates_training_reuse(self) -> None:
+        eager = tiny_config()
+        graph = tiny_config(
+            **{
+                "execution.device": "cuda",
+                "execution.gpu_count": 1,
+                "execution.step_executor": "pytorch-cuda-graph",
+                "execution.step_executor_options": {"max_graphs": 2},
+            }
+        )
+        self.assertNotEqual(
+            stage_reuse_key("training", eager, (DATASET,)),
+            stage_reuse_key("training", graph, (DATASET,)),
+        )
 
 
 if __name__ == "__main__":

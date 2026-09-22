@@ -20,6 +20,8 @@ class TechnologyProfileTests(unittest.TestCase):
             qec.TechnologyId.STIM_SYNDROME_CPU,
             qec.TechnologyId.CUDA_Q_SYNDROME_GPU,
             qec.TechnologyId.PYTORCH_CUDA_TRAINER,
+            qec.TechnologyId.PYTORCH_EAGER_STEP,
+            qec.TechnologyId.PYTORCH_CUDA_GRAPH_STEP,
             qec.TechnologyId.PYMATCHING_CPU_DECODER,
             qec.TechnologyId.PYTORCH_GPU_DECODER,
         )
@@ -111,6 +113,7 @@ class TechnologyProfileTests(unittest.TestCase):
         )
 
         self.assertEqual(execution.trainer_framework, "pytorch")
+        self.assertEqual(execution.step_executor, "pytorch-eager")
         self.assertEqual(result.runtime.technology_id, "pymatching-cpu-decoder")
 
     def test_contract_import_does_not_import_selected_frameworks(self) -> None:

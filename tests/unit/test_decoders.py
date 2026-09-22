@@ -104,6 +104,11 @@ class DecoderTests(unittest.TestCase):
 
 @requires_runtime
 class ExecutionPlannerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        from ai_qec.implementations import load_builtin_implementations
+
+        load_builtin_implementations()
+
     def test_unsupported_options_fail_with_every_reason(self) -> None:
         from unittest import mock
 
@@ -144,6 +149,7 @@ class ExecutionPlannerTests(unittest.TestCase):
         self.assertEqual(
             (plan.device, plan.world_size, plan.trainer_framework), ("cpu", 1, "pytorch")
         )
+        self.assertEqual(plan.step_executor, "pytorch-eager")
         self.assertTrue(plan.environment_digest.startswith("sha256:"))
 
 

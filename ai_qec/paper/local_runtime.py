@@ -651,9 +651,23 @@ class LocalNotebookRun:
         )
         trainer = build_from_config(self._config, "execution.trainer_framework", context=context)
         execution = dataclasses.replace(self._spec.execution, device=self._execution_plan.device)
-        outcome = trainer.train(
-            self._spec.model, self._spec.training, execution, dataset, self.attempt_id
-        )
+        stage.metadata["step_executor"] = {
+            "requested_executor": self._execution_plan.step_executor,
+            "observed_executor": None,
+            "implementation_version": self._execution_plan.step_executor_version,
+            "device": self._execution_plan.device,
+            "options_digest": self._execution_plan.step_executor_options_digest,
+            "fallback_observed": False,
+        }
+        try:
+            outcome = trainer.train(
+                self._spec.model, self._spec.training, execution, dataset, self.attempt_id
+            )
+        except BaseException as error:
+            evidence = getattr(error, "evidence", None)
+            if evidence is not None:
+                stage.metadata["step_executor"] = to_jsonable(evidence)
+            raise
         history_path = self.directory / "training" / "history.json"
         write_json_atomic(history_path, list(outcome.history))
         history_ref = self._commit("training")(
@@ -669,6 +683,7 @@ class LocalNotebookRun:
             resumed_from=to_jsonable(outcome.resumed_from),
             epochs_trained_in_attempt=len(outcome.recovery_checkpoints),
             transfer_evidence=to_jsonable(outcome.transfer_evidence),
+            step_executor=to_jsonable(outcome.step_evidence),
         )
         origin = (
             ""

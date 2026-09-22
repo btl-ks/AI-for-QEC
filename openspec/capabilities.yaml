@@ -84,10 +84,17 @@ capabilities:
       - ai_qec/training/trainers/pytorch_trainer.py
       - ai_qec/training/execution_planner.py
       - ai_qec/training/objectives/contrastive_divergence.py
+      - ai_qec/training/executors/protocol.py
+      - ai_qec/training/executors/eager.py
+      - ai_qec/training/executors/cuda_graph.py
       - tests/unit/test_rbm_training.py
+      - tests/unit/test_training_step_executors.py
+      - tests/unit/test_cuda_graph_executor.py
+      - tests/unit/test_cuda_graph_model_shapes.py
       - tests/integration/test_local_runtime.py
       - openspec/changes/archive/2026-09-22-reproduce-torlai-melko-2017/verification.md
-    notes: Single-device PyTorch CD-k trainer with separate ModelCheckpoint and TrainingRecoveryCheckpoint; bitwise resume verified on CPU. DDP, AMP and torch.compile are rejected before any Run is created.
+      - openspec/changes/archive/2026-09-22-add-pytorch-cuda-graph-training-step/verification.md
+    notes: Single-device PyTorch trainer with Registry-selected eager and direct CUDA Graph training-step executors, bounded batch-signature capture, auditable no-fallback evidence, and separate ModelCheckpoint/TrainingRecoveryCheckpoint. CPU eager and CUDA Graph epoch recovery are verified; the existing DataLoader remains per-batch H2D. DDP, AMP and torch.compile are rejected before any Run is created.
 
   - id: research/scientific-evaluation
     status: available

@@ -47,6 +47,8 @@ class DatasetStoreTests(unittest.TestCase):
                 **{
                     "execution.gpu_count": 1,
                     "execution.device": "cuda",
+                    "execution.step_executor": "pytorch-cuda-graph",
+                    "execution.step_executor_options": {"max_graphs": 2},
                     "training.epochs": 9,
                     "model.decoding": {"burn_in": 1, "max_steps": 2},
                 }

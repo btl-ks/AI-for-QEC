@@ -1,6 +1,7 @@
 """Execution resource specification separated from learning semantics."""
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 
@@ -16,7 +17,9 @@ class ExecutionSpec:
     mixed_precision: bool
     compile_model: bool
     trainer_framework: str = "pytorch"
-    schema_version: str = "execution-spec-v1"
+    step_executor: str = "pytorch-eager"
+    step_executor_options: Mapping[str, object] = field(default_factory=dict)
+    schema_version: str = "execution-spec-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +36,10 @@ class ResolvedExecutionPlan:
     compile_model: bool
     environment_digest: str
     trainer_framework: str = "pytorch"
+    step_executor: str = "pytorch-eager"
+    step_executor_version: str = "1"
+    step_executor_options: Mapping[str, object] = field(default_factory=dict)
+    step_executor_options_digest: str = ""
 
 
 @runtime_checkable

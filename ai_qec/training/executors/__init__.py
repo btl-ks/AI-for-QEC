@@ -1,7 +1,11 @@
-"""Training and execution contracts."""
+"""Vendor-neutral training-step executor contracts.
 
-from .execution import ExecutionPlanner, ExecutionSpec, ResolvedExecutionPlan
-from .executors import (
+Concrete PyTorch implementations are imported only by
+``load_builtin_implementations`` so importing the public notebook facade stays
+free of optional runtime dependencies.
+"""
+
+from .protocol import (
     BatchSignature,
     BatchSignatureEvidence,
     TensorSignature,
@@ -11,17 +15,11 @@ from .executors import (
     TrainingStepPlan,
     TrainingStepResult,
 )
-from .spec import Trainer, TrainingSpec
 
 __all__ = [
-    "ExecutionPlanner",
-    "ExecutionSpec",
-    "ResolvedExecutionPlan",
     "BatchSignature",
     "BatchSignatureEvidence",
     "TensorSignature",
-    "Trainer",
-    "TrainingSpec",
     "TrainingStepContext",
     "TrainingStepEvidence",
     "TrainingStepExecutor",

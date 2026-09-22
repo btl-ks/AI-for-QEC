@@ -1,4 +1,6 @@
 from dataclasses import FrozenInstanceError
+import subprocess
+import sys
 import unittest
 
 import ai_qec.notebook_api as qec
@@ -94,6 +96,7 @@ class PublicContractTests(unittest.TestCase):
 
         self.assertNotEqual(type(model), type(recovery))
         self.assertEqual(recovery.source_attempt_id, "attempt-1")
+        self.assertFalse(hasattr(model, "step_executor"))
 
     def test_scientific_result_requires_ler_evidence(self) -> None:
         estimate = qec.MetricEstimate(
@@ -127,6 +130,47 @@ class PublicContractTests(unittest.TestCase):
         estimate = qec.MetricEstimate("logical_error_rate", 0.1, 1, 10, 0.95, 0.0, 0.4, "wilson")
         evaluation = qec.DecoderEvaluation("mwpm", "ds", "sha256:x", estimate, 1, 0, 0, "metrics-1")
         self.assertEqual(dict(evaluation.logical_class_counts), {})
+
+    def test_training_step_contracts_are_dependency_free_and_stable(self) -> None:
+        signature = qec.BatchSignature(
+            (
+                qec.TensorSignature(
+                    field="x",
+                    shape=(32, 8),
+                    dtype="torch.float32",
+                    device="cuda:0",
+                    stride=(8, 1),
+                ),
+            )
+        )
+        per_signature = qec.BatchSignatureEvidence(signature, 1, 1, 4, 0.1, 0.2, 0.3)
+        evidence = qec.TrainingStepEvidence(
+            "pytorch-cuda-graph",
+            "pytorch-cuda-graph",
+            "1",
+            "cuda:0",
+            "sha256:options",
+            (per_signature,),
+            1,
+            1,
+            4,
+            0.1,
+            0.2,
+            0.3,
+            False,
+        )
+        self.assertEqual(evidence.signatures[0].signature.tensors[0].stride, (8, 1))
+        with self.assertRaises(FrozenInstanceError):
+            evidence.fallback_observed = True  # type: ignore[misc]
+
+        script = (
+            "import sys; from ai_qec.notebook_api import TrainingStepExecutor; "
+            "print('torch' in sys.modules)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script], capture_output=True, text=True, check=True
+        )
+        self.assertEqual(result.stdout.strip(), "False")
 
     def test_facade_publishes_only_the_real_runtime_entrypoint(self) -> None:
         self.assertTrue(callable(qec.LocalNotebookPlatform))

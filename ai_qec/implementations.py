@@ -20,6 +20,8 @@ IMPLEMENTATION_MODULES = (
     "ai_qec.models.decoders.classical.pymatching_adapter",
     "ai_qec.training.objectives.contrastive_divergence",
     "ai_qec.training.optimizers",
+    "ai_qec.training.executors.eager",
+    "ai_qec.training.executors.cuda_graph",
     "ai_qec.training.trainers.pytorch_trainer",
 )
 

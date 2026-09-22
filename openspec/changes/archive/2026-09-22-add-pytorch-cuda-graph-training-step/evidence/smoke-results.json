@@ -1,0 +1,321 @@
+{
+  "notebook": "paper/srcs/ai_for_qec_workflow.ipynb",
+  "points": [
+    {
+      "attempt_id": "attempt-0001",
+      "attempt_status": "completed",
+      "dataset_artifact_id": "ds-1999a9af8fb146488c42",
+      "dataset_checksum": "sha256:cc9a348f5be037b84814df462068a1d5d5fd8a2ce98a2b9947aac0f1a4d5452a",
+      "experiment_id": "torlai-melko-2017-smoke-l4-p0.05-0cf34c3b4e49",
+      "figure_artifact_ids": [
+        "attempt-0001.figure-training-history",
+        "attempt-0001.figure-decoder-comparison",
+        "attempt-0001.figure-logical-classes"
+      ],
+      "gate": "fail",
+      "grid": {
+        "L": 4,
+        "p": 0.05
+      },
+      "model_artifact_id": "attempt-0001.model-final",
+      "model_checksum": "sha256:8ee2d8bb66f25071b442ae71b5c7cc510cb487e8c5ec313e8fa69075717c295a",
+      "performance_artifact_id": null,
+      "scientific_result_artifact_id": "attempt-0001.scientific-evaluation",
+      "step_executor": {
+        "batch_copy_seconds": 0.06387724604064715,
+        "capture_count": 1,
+        "capture_seconds": 0.009787531000256422,
+        "device": "cuda:0",
+        "fallback_observed": false,
+        "implementation_version": "1",
+        "observed_executor": "pytorch-cuda-graph",
+        "options_digest": "sha256:4fac18a6005891e28f8af21980972eaaf532ab91ea13041fd65e9a9d9dca20ba",
+        "replay_seconds": 0.17410946298878116,
+        "replay_steps": 1998,
+        "requested_executor": "pytorch-cuda-graph",
+        "signatures": [
+          {
+            "batch_copy_seconds": 0.06387724604064715,
+            "capture_count": 1,
+            "capture_seconds": 0.009787531000256422,
+            "replay_seconds": 0.17410946298878116,
+            "replay_steps": 1998,
+            "signature": {
+              "tensors": [
+                {
+                  "device": "cuda:0",
+                  "dtype": "torch.uint8",
+                  "field": "detector_events",
+                  "shape": [
+                    100,
+                    16
+                  ],
+                  "stride": [
+                    16,
+                    1
+                  ]
+                },
+                {
+                  "device": "cuda:0",
+                  "dtype": "torch.uint8",
+                  "field": "physical_errors",
+                  "shape": [
+                    100,
+                    32
+                  ],
+                  "stride": [
+                    32,
+                    1
+                  ]
+                }
+              ]
+            },
+            "warmup_steps": 1
+          }
+        ],
+        "warmup_steps": 1
+      },
+      "transfer_evidence": {
+        "host_staging_observed": false,
+        "source_layout": {
+          "device": "cpu",
+          "dtype": "uint8",
+          "interchange": null,
+          "representation": "numpy-array",
+          "residency": "host",
+          "shape": [
+            20000,
+            16
+          ],
+          "zero_copy": false
+        },
+        "stream_synchronized": false,
+        "target_layout": {
+          "device": "cuda:0",
+          "dtype": "uint8",
+          "interchange": null,
+          "representation": "pytorch-cuda-tensor",
+          "residency": "cuda-device",
+          "shape": [
+            100,
+            16
+          ],
+          "zero_copy": false
+        },
+        "technology_id": "pytorch-dataloader-h2d",
+        "zero_copy_observed": false
+      }
+    },
+    {
+      "attempt_id": "attempt-0001",
+      "attempt_status": "completed",
+      "dataset_artifact_id": "ds-1f85c30792dcf48cb44f",
+      "dataset_checksum": "sha256:ddd326e88a7f89bb909ec5aaf534438b1ff5f803a26fe41720baccef86261d4a",
+      "experiment_id": "torlai-melko-2017-smoke-l4-p0.10-6f783a94a265",
+      "figure_artifact_ids": [
+        "attempt-0001.figure-training-history",
+        "attempt-0001.figure-decoder-comparison",
+        "attempt-0001.figure-logical-classes"
+      ],
+      "gate": "fail",
+      "grid": {
+        "L": 4,
+        "p": 0.1
+      },
+      "model_artifact_id": "attempt-0001.model-final",
+      "model_checksum": "sha256:dfd6c3039615c1c85b1181ee4ced3c7272e4864cd39ae2b28aff1d5f75585935",
+      "performance_artifact_id": null,
+      "scientific_result_artifact_id": "attempt-0001.scientific-evaluation",
+      "step_executor": {
+        "batch_copy_seconds": 0.048752107000836986,
+        "capture_count": 1,
+        "capture_seconds": 0.004518523000115238,
+        "device": "cuda:0",
+        "fallback_observed": false,
+        "implementation_version": "1",
+        "observed_executor": "pytorch-cuda-graph",
+        "options_digest": "sha256:4fac18a6005891e28f8af21980972eaaf532ab91ea13041fd65e9a9d9dca20ba",
+        "replay_seconds": 0.17244335998475435,
+        "replay_steps": 1998,
+        "requested_executor": "pytorch-cuda-graph",
+        "signatures": [
+          {
+            "batch_copy_seconds": 0.048752107000836986,
+            "capture_count": 1,
+            "capture_seconds": 0.004518523000115238,
+            "replay_seconds": 0.17244335998475435,
+            "replay_steps": 1998,
+            "signature": {
+              "tensors": [
+                {
+                  "device": "cuda:0",
+                  "dtype": "torch.uint8",
+                  "field": "detector_events",
+                  "shape": [
+                    100,
+                    16
+                  ],
+                  "stride": [
+                    16,
+                    1
+                  ]
+                },
+                {
+                  "device": "cuda:0",
+                  "dtype": "torch.uint8",
+                  "field": "physical_errors",
+                  "shape": [
+                    100,
+                    32
+                  ],
+                  "stride": [
+                    32,
+                    1
+                  ]
+                }
+              ]
+            },
+            "warmup_steps": 1
+          }
+        ],
+        "warmup_steps": 1
+      },
+      "transfer_evidence": {
+        "host_staging_observed": false,
+        "source_layout": {
+          "device": "cpu",
+          "dtype": "uint8",
+          "interchange": null,
+          "representation": "numpy-array",
+          "residency": "host",
+          "shape": [
+            20000,
+            16
+          ],
+          "zero_copy": false
+        },
+        "stream_synchronized": false,
+        "target_layout": {
+          "device": "cuda:0",
+          "dtype": "uint8",
+          "interchange": null,
+          "representation": "pytorch-cuda-tensor",
+          "residency": "cuda-device",
+          "shape": [
+            100,
+            16
+          ],
+          "zero_copy": false
+        },
+        "technology_id": "pytorch-dataloader-h2d",
+        "zero_copy_observed": false
+      }
+    },
+    {
+      "attempt_id": "attempt-0001",
+      "attempt_status": "completed",
+      "dataset_artifact_id": "ds-eab898b5a1bdeb74dc8e",
+      "dataset_checksum": "sha256:239bdd0bf12f72ae1093e722e49ca69f016135d5ea3d0bd01b329d7d1ee18ce7",
+      "experiment_id": "torlai-melko-2017-smoke-l4-p0.15-f17a8ce2f6fc",
+      "figure_artifact_ids": [
+        "attempt-0001.figure-training-history",
+        "attempt-0001.figure-decoder-comparison",
+        "attempt-0001.figure-logical-classes"
+      ],
+      "gate": "fail",
+      "grid": {
+        "L": 4,
+        "p": 0.15
+      },
+      "model_artifact_id": "attempt-0001.model-final",
+      "model_checksum": "sha256:4db4e554dceeeb8e142fa61f4beae04db908735228c22b631b9cdd4efc202c68",
+      "performance_artifact_id": null,
+      "scientific_result_artifact_id": "attempt-0001.scientific-evaluation",
+      "step_executor": {
+        "batch_copy_seconds": 0.05845996000698506,
+        "capture_count": 1,
+        "capture_seconds": 0.004140729000027932,
+        "device": "cuda:0",
+        "fallback_observed": false,
+        "implementation_version": "1",
+        "observed_executor": "pytorch-cuda-graph",
+        "options_digest": "sha256:4fac18a6005891e28f8af21980972eaaf532ab91ea13041fd65e9a9d9dca20ba",
+        "replay_seconds": 0.19931906799956778,
+        "replay_steps": 1998,
+        "requested_executor": "pytorch-cuda-graph",
+        "signatures": [
+          {
+            "batch_copy_seconds": 0.05845996000698506,
+            "capture_count": 1,
+            "capture_seconds": 0.004140729000027932,
+            "replay_seconds": 0.19931906799956778,
+            "replay_steps": 1998,
+            "signature": {
+              "tensors": [
+                {
+                  "device": "cuda:0",
+                  "dtype": "torch.uint8",
+                  "field": "detector_events",
+                  "shape": [
+                    100,
+                    16
+                  ],
+                  "stride": [
+                    16,
+                    1
+                  ]
+                },
+                {
+                  "device": "cuda:0",
+                  "dtype": "torch.uint8",
+                  "field": "physical_errors",
+                  "shape": [
+                    100,
+                    32
+                  ],
+                  "stride": [
+                    32,
+                    1
+                  ]
+                }
+              ]
+            },
+            "warmup_steps": 1
+          }
+        ],
+        "warmup_steps": 1
+      },
+      "transfer_evidence": {
+        "host_staging_observed": false,
+        "source_layout": {
+          "device": "cpu",
+          "dtype": "uint8",
+          "interchange": null,
+          "representation": "numpy-array",
+          "residency": "host",
+          "shape": [
+            20000,
+            16
+          ],
+          "zero_copy": false
+        },
+        "stream_synchronized": false,
+        "target_layout": {
+          "device": "cuda:0",
+          "dtype": "uint8",
+          "interchange": null,
+          "representation": "pytorch-cuda-tensor",
+          "residency": "cuda-device",
+          "shape": [
+            100,
+            16
+          ],
+          "zero_copy": false
+        },
+        "technology_id": "pytorch-dataloader-h2d",
+        "zero_copy_observed": false
+      }
+    }
+  ],
+  "profile": "smoke"
+}

@@ -153,6 +153,8 @@ class PaperNotebookTests(unittest.TestCase):
         )
         self.assertEqual(parsed.spec.accuracy_gate.tolerance, 0.15)
         self.assertEqual(parsed.spec.dataset.qec.code_family, "toric")
+        self.assertIn(parsed.spec.execution.step_executor, ("pytorch-eager", "pytorch-cuda-graph"))
+        self.assertNotIn("resident", namespace["CONFIG"]["data_pipeline"]["cpu_to_gpu"])
 
     def test_gate_fail_skips_performance_and_finishes(self) -> None:
         run_paper = execute_definition_cells()["run_paper"]

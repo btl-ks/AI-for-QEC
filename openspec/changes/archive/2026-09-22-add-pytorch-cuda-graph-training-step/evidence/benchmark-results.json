@@ -1,0 +1,191 @@
+{
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "numpy": "2.5.3",
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "pymatching": "2.4.0",
+    "python": "3.12.14",
+    "stim": "1.16.0",
+    "torch": "2.14.0+cu130",
+    "torch_cuda": "13.0"
+  },
+  "microbenchmark": {
+    "batch_d2d_copy_ms": 0.023707008361816405,
+    "capture_ms": 7.4941800003216485,
+    "cd_steps": 10,
+    "distinct_device_batches": 64,
+    "eager_step_ms": 2.2647917240001334,
+    "evidence": {
+      "capture_count": 1,
+      "fallback_observed": false,
+      "replay_steps": 1020,
+      "warmup_steps": 1
+    },
+    "hidden_units": 128,
+    "shape": {
+      "batch": 100,
+      "detector_events": 36,
+      "physical_errors": 72
+    },
+    "speedup": 6.474666111002146,
+    "steady_copy_plus_replay_ms": 0.34979282099993725,
+    "steady_replay_host_submit_ms": 0.2356024349837753,
+    "timed_steps": 1000
+  },
+  "stage_benchmark": {
+    "executors": {
+      "pytorch-cuda-graph": {
+        "accuracy_gate": "pass",
+        "attempt_id": "attempt-0001",
+        "dataset_artifact_id": "ds-8a7f272efa07384a7711",
+        "experiment_id": "cuda-graph-benchmark-pytorch-cuda-graph-07974c5fde63",
+        "model_artifact_id": "attempt-0001.model-final",
+        "model_checksum": "sha256:aaca87a883ae78239275b2da6fe02c016476372aaa13119bc1218234a55f0e6c",
+        "scientific_result_artifact_id": "attempt-0001.scientific-evaluation",
+        "step_evidence": {
+          "batch_copy_seconds": 0.1273179759427876,
+          "capture_count": 1,
+          "capture_seconds": 0.003710990000399761,
+          "device": "cuda:0",
+          "fallback_observed": false,
+          "implementation_version": "1",
+          "observed_executor": "pytorch-cuda-graph",
+          "options_digest": "sha256:4fac18a6005891e28f8af21980972eaaf532ab91ea13041fd65e9a9d9dca20ba",
+          "replay_seconds": 0.44306916200912383,
+          "replay_steps": 2998,
+          "requested_executor": "pytorch-cuda-graph",
+          "signatures": [
+            {
+              "batch_copy_seconds": 0.1273179759427876,
+              "capture_count": 1,
+              "capture_seconds": 0.003710990000399761,
+              "replay_seconds": 0.44306916200912383,
+              "replay_steps": 2998,
+              "signature": {
+                "tensors": [
+                  {
+                    "device": "cuda:0",
+                    "dtype": "torch.uint8",
+                    "field": "detector_events",
+                    "shape": [
+                      100,
+                      36
+                    ],
+                    "stride": [
+                      36,
+                      1
+                    ]
+                  },
+                  {
+                    "device": "cuda:0",
+                    "dtype": "torch.uint8",
+                    "field": "physical_errors",
+                    "shape": [
+                      100,
+                      72
+                    ],
+                    "stride": [
+                      72,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "warmup_steps": 1
+            }
+          ],
+          "warmup_steps": 1
+        },
+        "training_stage_seconds": 1.5288049750006394,
+        "transfer_evidence": {
+          "host_staging_observed": false,
+          "source_layout": {
+            "device": "cpu",
+            "dtype": "uint8",
+            "interchange": null,
+            "representation": "numpy-array",
+            "residency": "host",
+            "shape": [
+              100000,
+              36
+            ],
+            "zero_copy": false
+          },
+          "stream_synchronized": false,
+          "target_layout": {
+            "device": "cuda:0",
+            "dtype": "uint8",
+            "interchange": null,
+            "representation": "pytorch-cuda-tensor",
+            "residency": "cuda-device",
+            "shape": [
+              100,
+              36
+            ],
+            "zero_copy": false
+          },
+          "technology_id": "pytorch-dataloader-h2d",
+          "zero_copy_observed": false
+        }
+      },
+      "pytorch-eager": {
+        "accuracy_gate": "pass",
+        "attempt_id": "attempt-0001",
+        "dataset_artifact_id": "ds-8a7f272efa07384a7711",
+        "experiment_id": "cuda-graph-benchmark-pytorch-eager-574e818b95f2",
+        "model_artifact_id": "attempt-0001.model-final",
+        "model_checksum": "sha256:aaca87a883ae78239275b2da6fe02c016476372aaa13119bc1218234a55f0e6c",
+        "scientific_result_artifact_id": "attempt-0001.scientific-evaluation",
+        "step_evidence": {
+          "batch_copy_seconds": 0.0,
+          "capture_count": 0,
+          "capture_seconds": 0.0,
+          "device": "cuda:0",
+          "fallback_observed": false,
+          "implementation_version": "1",
+          "observed_executor": "pytorch-eager",
+          "options_digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "replay_seconds": 0.0,
+          "replay_steps": 0,
+          "requested_executor": "pytorch-eager",
+          "signatures": [],
+          "warmup_steps": 0
+        },
+        "training_stage_seconds": 7.617904146000001,
+        "transfer_evidence": {
+          "host_staging_observed": false,
+          "source_layout": {
+            "device": "cpu",
+            "dtype": "uint8",
+            "interchange": null,
+            "representation": "numpy-array",
+            "residency": "host",
+            "shape": [
+              100000,
+              36
+            ],
+            "zero_copy": false
+          },
+          "stream_synchronized": false,
+          "target_layout": {
+            "device": "cuda:0",
+            "dtype": "uint8",
+            "interchange": null,
+            "representation": "pytorch-cuda-tensor",
+            "residency": "cuda-device",
+            "shape": [
+              100,
+              36
+            ],
+            "zero_copy": false
+          },
+          "technology_id": "pytorch-dataloader-h2d",
+          "zero_copy_observed": false
+        }
+      }
+    },
+    "root": "/tmp/ai-qec-cuda-graph-benchmark-gfa5cf6d",
+    "same_dataset_artifact": true,
+    "training_stage_speedup": 4.982914283096714
+  }
+}

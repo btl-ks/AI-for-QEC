@@ -2,7 +2,7 @@
 
 面向 AI for Quantum Error Correction 的可复现研究平台。
 
-> 当前状态：**contracts + 本地单进程 runtime（partial）**。本地 runtime 能端到端执行 toric code、相位翻转 code-capacity 场景下的 Torlai & Melko (2017) 神经解码器复现：Stim 数据生成与复用、PyTorch CD-k 训练与 epoch 边界恢复、按 Stage 复用键跨 Experiment 复用已完成的训练与评估、RBM Gibbs 解码、PyMatching baseline、Wilson LER、配对非劣效 Accuracy Gate（绝对或相对容差）与 Gate 后的吞吐量测量。CUDA-Q、Qiskit、circuit-level 噪声、多 GPU、AMP、Gate B 与正式性能研究仍未实现。
+> 当前状态：**contracts + 本地单进程 runtime（partial）**。本地 runtime 能端到端执行 toric code、相位翻转 code-capacity 场景下的 Torlai & Melko (2017) 神经解码器复现：Stim 数据生成与复用、Registry 驱动的 PyTorch eager/CUDA Graph CD-k 训练步与 epoch 边界恢复、按 Stage 复用键跨 Experiment 复用已完成的训练与评估、RBM Gibbs 解码、PyMatching baseline、Wilson LER、配对非劣效 Accuracy Gate（绝对或相对容差）与 Gate 后的吞吐量测量。CUDA-Q、Qiskit、circuit-level 噪声、多 GPU、AMP、Gate B 与正式性能研究仍未实现。
 
 ## 研究主路径
 
@@ -27,7 +27,7 @@ Configure
 | QEC Code | Stim（CPU）、CUDA-Q（GPU） | Stim：partial（code-capacity）；CUDA-Q：contracts-only |
 | QEC Noise | Stim noise adapter | partial（独立相位翻转精确编译，其他显式拒绝） |
 | Syndrome Generator | Stim（CPU）、CUDA-Q（GPU） | Stim：partial（单轮 code-capacity）；CUDA-Q：contracts-only |
-| Trainer | PyTorch + CUDA | partial（单进程、单设备、float32） |
+| Trainer | PyTorch + CUDA | partial（单进程、单设备、float32；eager 与直接 CUDA Graph 训练步） |
 | Decoder | PyMatching（CPU）、PyTorch（GPU） | PyMatching：implemented；PyTorch：partial（RBM Gibbs） |
 | QECBatch runtime | PyTorch Tensor | partial；持久化为 bit-packed CPU buffer |
 | CPU→GPU | Dataset/DataLoader + pinned memory + non-blocking | implemented |
@@ -36,6 +36,11 @@ Configure
 完整 primary/alternative/phase 状态以 `openspec/technology-catalog.yaml` 为准。DALI、Ray Data 和自定义 CUDA extension 不属于 v0.1 必需实现。
 
 配置中的待定选择统一使用字符串 `unresolved`。任何构造开始前必须调用配置预检；只有当前阶段明确不消费的完整字段路径才能通过 allow set 暂时放行。Registry 只登记真实可用的实现，且只在 `LocalNotebookPlatform` 构造时通过 `ai_qec.implementations.load_builtin_implementations()` 显式加载；导入 `ai_qec.notebook_api` 不会加载 torch、stim、pymatching、qiskit 或 cudaq。选中尚不可用的技术（例如 `qiskit-circuit`）会在创建任何目录前明确失败。
+
+训练步由 `execution.step_executor` 选择 `pytorch-eager` 或 `pytorch-cuda-graph`。CUDA Graph
+实现按完整 batch signature 建立有界 graph cache，只保存 batch 级静态输入；现有 DataLoader 仍逐
+batch 执行 H2D，完整训练集不会常驻 GPU。未知选项、非 CUDA 设备、不可 capture 的模型或
+objective 都会明确失败，不会静默回退 eager。
 
 ## 仓库结构
 

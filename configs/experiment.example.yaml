@@ -47,6 +47,8 @@ execution:
   num_workers: 0
   mixed_precision: false
   compile_model: false
+  step_executor: pytorch-eager
+  step_executor_options: {}
 
 scientific_evaluation:
   baseline_decoder: pymatching-cpu-decoder

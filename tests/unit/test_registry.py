@@ -101,14 +101,15 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(result, {"shots": 128})
 
     def test_global_registry_paths_are_unique_and_have_no_fake_factories(self) -> None:
-        self.assertEqual(len(qec.REGISTRIES_BY_PATH), 13)
-        self.assertEqual(len(set(qec.REGISTRIES_BY_PATH)), 13)
+        self.assertEqual(len(qec.REGISTRIES_BY_PATH), 14)
+        self.assertEqual(len(set(qec.REGISTRIES_BY_PATH)), 14)
         self.assertEqual(qec.CODES.name, "qec.code_family")
         self.assertEqual(qec.NOISE.name, "noise.family")
         self.assertEqual(qec.GENERATORS.name, "dataset.generator")
         self.assertEqual(qec.OPTIMIZERS.name, "training.optimizer")
         self.assertEqual(qec.SCHEDULERS.name, "training.scheduler")
         self.assertEqual(qec.LOSSES.name, "training.loss")
+        self.assertEqual(qec.TRAINING_STEP_EXECUTORS.name, "execution.step_executor")
         self.assertEqual(
             qec.CPU_TO_GPU_PIPELINES.name,
             "data_pipeline.cpu_to_gpu.technology",
@@ -143,6 +144,7 @@ class RegistryTests(unittest.TestCase):
                 "training.scheduler": ("constant",),
                 "training.loss": ("contrastive-divergence",),
                 "execution.trainer_framework": ("pytorch",),
+                "execution.step_executor": ("pytorch-cuda-graph", "pytorch-eager"),
                 "scientific_evaluation.baseline_decoders": ("pymatching-cpu-decoder",),
                 "data_pipeline.cpu_to_gpu.technology": ("pytorch-dataloader-h2d",),
             },

@@ -11,6 +11,8 @@ class TechnologyId(StrEnum):
     STIM_SYNDROME_CPU = "stim-syndrome-cpu"
     CUDA_Q_SYNDROME_GPU = "cuda-q-syndrome-gpu"
     PYTORCH_CUDA_TRAINER = "pytorch-cuda-trainer"
+    PYTORCH_EAGER_STEP = "pytorch-eager"
+    PYTORCH_CUDA_GRAPH_STEP = "pytorch-cuda-graph"
     PYMATCHING_CPU_DECODER = "pymatching-cpu-decoder"
     PYTORCH_GPU_DECODER = "pytorch-gpu-decoder"
     PYTORCH_TENSOR = "pytorch-tensor"
@@ -31,4 +33,3 @@ class TechnologyImplementation(StrEnum):
     PARTIAL = "partial"
     IMPLEMENTED = "implemented"
     VALIDATED = "validated"
-
