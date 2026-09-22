@@ -48,6 +48,11 @@ openspec validate --all --strict --no-interactive
 - 字符串 `unresolved` 是唯一未决占位值；任何构造前必须 fail fast，只有当前阶段不消费的精确字段路径可以显式 allow。
 - Protocol 或 technology catalog 条目不得注册为可执行工厂；Registry 只登记真实可用实现。
 
+## Text Formatting
+
+- 所有面向读者的文本中的数学公式、数学变量和数学表达式必须使用 LaTeX 格式；Markdown 与 Jupyter Markdown 中的行内公式使用 `$...$`，独立公式使用 `$$...$$`，例如 `$Z_L^{(1)}$`。
+- 程序标识符、配置字段、Registry key、命令和文件路径仍使用代码格式，不得误写为数学公式。
+
 ## Long-Running Execution
 
 - 预计超过几分钟的运行（执行论文 Notebook、训练网格、批量评估）必须用 `setsid nohup` 启动，与 agent 会话脱离，stdout/stderr 写入日志文件；不得作为 agent 会话的后台任务运行。编辑器窗口重载或会话结束会杀掉会话的整个进程树。
