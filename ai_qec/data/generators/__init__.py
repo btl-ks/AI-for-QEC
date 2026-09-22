@@ -1,5 +1,5 @@
 """Interfaces for QEC dataset generators."""
 
-from .protocol import QECDataGenerator
+from .protocol import GeneratorDevice, QECDataGenerator, SyndromeGeneratorDescriptor
 
-__all__ = ["QECDataGenerator"]
+__all__ = ["GeneratorDevice", "QECDataGenerator", "SyndromeGeneratorDescriptor"]

@@ -19,6 +19,15 @@ class DecodeStatus(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class DecoderRuntimeDescriptor:
+    """Actual decoder technology used for a DecodeResult."""
+
+    technology_id: str
+    technology_version: str
+    device: str
+
+
+@dataclass(frozen=True, slots=True)
 class DecodeRequest(Generic[ArrayT]):
     """A decoder invocation over an explicitly identified QEC batch."""
 
@@ -36,6 +45,7 @@ class DecodeResult(Generic[ArrayT]):
     decoder_id: str
     status: DecodeStatus
     predictions: ArrayT | None
+    runtime: DecoderRuntimeDescriptor
     failed_sample_ids: tuple[str, ...] = ()
     error: str | None = None
     provenance: Mapping[str, object] = field(default_factory=dict)

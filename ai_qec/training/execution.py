@@ -15,6 +15,7 @@ class ExecutionSpec:
     num_workers: int
     mixed_precision: bool
     compile_model: bool
+    trainer_framework: str = "pytorch"
     schema_version: str = "execution-spec-v1"
 
 
@@ -31,6 +32,7 @@ class ResolvedExecutionPlan:
     mixed_precision_mode: str | None
     compile_model: bool
     environment_digest: str
+    trainer_framework: str = "pytorch"
 
 
 @runtime_checkable

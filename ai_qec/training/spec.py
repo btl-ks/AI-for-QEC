@@ -1,7 +1,7 @@
 """Training semantics and trainer protocol."""
 
-from dataclasses import dataclass
-from typing import Protocol, TypeVar, runtime_checkable
+from dataclasses import dataclass, field
+from typing import Mapping, Protocol, TypeVar, runtime_checkable
 
 from ai_qec.data.datasets.artifact import DatasetArtifact
 from ai_qec.models.spec import ModelSpec
@@ -24,6 +24,8 @@ class TrainingSpec:
     loss: str
     checkpoint_policy: str = "epoch-boundary"
     schema_version: str = "training-spec-v1"
+    optimizer_parameters: Mapping[str, object] = field(default_factory=dict)
+    loss_parameters: Mapping[str, object] = field(default_factory=dict)
 
 
 @runtime_checkable

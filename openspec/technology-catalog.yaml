@@ -1,0 +1,132 @@
+schema_version: "1.0"
+profile_id: v0-1
+phase: local-runtime
+decisions:
+  - component: qec-circuit
+    primary:
+      id: qiskit-circuit
+      version: unresolved
+      implementation: contracts-only
+    alternatives: []
+    rationale: Qiskit is the selected circuit construction and interchange adapter.
+
+  - component: qec-code-cpu
+    primary:
+      id: stim-cpu
+      version: "1.16.0"
+      implementation: partial
+    alternatives: []
+    rationale: Stim is the selected CPU stabilizer/QEC execution backend. Partial - its Pauli-frame simulator runs single-round code-capacity circuits built from a vendor-neutral code.
+
+  - component: qec-code-gpu
+    primary:
+      id: cuda-q-gpu
+      version: unresolved
+      implementation: contracts-only
+    alternatives: []
+    rationale: CUDA-Q is the selected NVIDIA GPU QEC execution backend.
+
+  - component: qec-noise
+    primary:
+      id: stim-noise
+      version: "1.16.0"
+      implementation: partial
+    alternatives: []
+    rationale: Stim noise is the selected executable v0.1 noise representation behind NoiseSpec. Partial - independent phase-flip compiles exactly; every other NoiseSpec is rejected as unsupported.
+
+  - component: syndrome-generator-cpu
+    primary:
+      id: stim-syndrome-cpu
+      version: "1.16.0"
+      implementation: partial
+    alternatives: []
+    rationale: Stim provides the primary CPU syndrome generation path. Partial - toric code-capacity data with physical errors; the installed version must equal dataset.generator_version.
+
+  - component: syndrome-generator-gpu
+    primary:
+      id: cuda-q-syndrome-gpu
+      version: unresolved
+      implementation: contracts-only
+    alternatives: []
+    rationale: CUDA-Q provides the primary GPU syndrome generation path.
+
+  - component: trainer
+    primary:
+      id: pytorch-cuda-trainer
+      version: "2.14.0"
+      implementation: partial
+    alternatives: []
+    rationale: PyTorch with CUDA is the selected model training runtime. Partial - single process, single device, float32; DDP, AMP and torch.compile are rejected.
+
+  - component: decoder-cpu
+    primary:
+      id: pymatching-cpu-decoder
+      version: "2.4.0"
+      implementation: implemented
+    alternatives: []
+    rationale: PyMatching is the selected CPU classical baseline decoder.
+
+  - component: decoder-gpu
+    primary:
+      id: pytorch-gpu-decoder
+      version: "2.14.0"
+      implementation: partial
+    alternatives: []
+    rationale: PyTorch is the selected GPU AI decoder runtime. Partial - syndrome-clamped RBM Gibbs decoding (Torlai and Melko 2017, algorithm 1).
+
+  - component: qec-batch-runtime
+    primary:
+      id: pytorch-tensor
+      version: "2.14.0"
+      implementation: partial
+    alternatives:
+      - id: numpy-array
+        version: "2.5.3"
+        implementation: partial
+        phase: interchange
+      - id: bit-packed-cpu-buffer
+        version: "2.5.3"
+        implementation: implemented
+        phase: persistence
+      - id: pytorch-cuda-tensor
+        version: "2.14.0"
+        implementation: partial
+        phase: gpu-runtime
+      - id: dlpack
+        version: unresolved
+        implementation: contracts-only
+        phase: interchange
+    rationale: AI execution is Tensor-first while persistence and zero-copy exchange remain explicit.
+
+  - component: cpu-to-gpu-pipeline
+    primary:
+      id: pytorch-dataloader-h2d
+      version: "2.14.0"
+      implementation: implemented
+    alternatives:
+      - id: nvidia-dali
+        version: unresolved
+        implementation: none
+        phase: deferred
+      - id: ray-data
+        version: unresolved
+        implementation: none
+        phase: deferred
+    rationale: Dataset/DataLoader with pinned memory and non-blocking transfer is sufficient for v0.1.
+
+  - component: gpu-to-gpu-pipeline
+    primary:
+      id: cuda-q-to-pytorch-cuda
+      version: unresolved
+      implementation: contracts-only
+    alternatives:
+      - id: dlpack
+        version: unresolved
+        implementation: contracts-only
+        phase: preferred-interchange
+      - id: custom-cuda-extension
+        version: unresolved
+        implementation: none
+        phase: deferred
+    rationale: Keep syndrome batches GPU-resident and avoid GPU-to-CPU-to-GPU transfers.
+

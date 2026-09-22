@@ -7,6 +7,8 @@ context: |
   This project is accuracy-first and performance-second.
   Public interfaces are exported through ai_qec/notebook_api.py.
   A contract scaffold is not an implemented capability.
+  Configuration-selected implementations use the centralized REGISTRIES_BY_PATH table.
+  The string unresolved must fail before construction unless its exact path is explicitly allowed.
 
 rules:
   proposal:
@@ -17,6 +19,7 @@ rules:
     - Do not treat file presence, Protocol definitions, or scaffold tests as implementation evidence.
   design:
     - Preserve vendor-neutral domain contracts and place third-party tools behind adapters.
+    - Use Registry-backed construction for selectable implementations; do not hard-code technology branches in orchestration code.
   tasks:
     - Every task must name its verification command or observable evidence.
 

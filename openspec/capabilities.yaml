@@ -10,52 +10,106 @@ capabilities:
       - openspec/changes/archive/2026-09-22-bootstrap-contract-repository/verification.md
     notes: OpenSpec workflow, archived canonical specs, strict validation, and verification evidence are present.
 
+  - id: governance/technology-selection
+    status: validated
+    implementation: complete
+    spec: openspec/specs/governance/technology-selection/spec.md
+    evidence:
+      - openspec/technology-catalog.yaml
+      - openspec/technology-catalog.schema.json
+      - openspec/changes/archive/2026-09-22-define-v01-technology-profile/verification.md
+    notes: Catalog, schema, archived specification, tests, and strict validation evidence are present.
+
+  - id: governance/configuration-registry
+    status: validated
+    implementation: complete
+    spec: openspec/specs/governance/configuration-registry/spec.md
+    evidence:
+      - ai_qec/registry.py
+      - ai_qec/registries.py
+      - ai_qec/config_validation.py
+      - ai_qec/experiment/grid.py
+      - tests/unit/test_config_grid.py
+      - openspec/changes/archive/2026-09-22-define-v01-technology-profile/verification.md
+      - openspec/changes/archive/2026-09-22-add-config-grid/verification.md
+    notes: Registry, preflight validation, declared-field-only configuration grids, archived specifications, tests, and strict validation evidence are present.
+
   - id: research/experiment-lifecycle
-    status: planned
-    implementation: contracts-only
+    status: available
+    implementation: partial
     spec: openspec/specs/research/experiment-lifecycle/spec.md
     evidence:
-      - ai_qec/experiment/
-    notes: Types and Protocols only; no persistence, state machine, or recovery implementation.
+      - ai_qec/experiment/local.py
+      - ai_qec/experiment/streams.py
+      - ai_qec/experiment/reuse.py
+      - ai_qec/paper/local_runtime.py
+      - tests/unit/test_lifecycle.py
+      - tests/unit/test_stage_reuse.py
+      - tests/integration/test_local_runtime.py
+      - openspec/changes/archive/2026-09-22-reproduce-torlai-melko-2017/verification.md
+      - openspec/changes/archive/2026-09-22-add-relative-gate-and-stage-reuse/verification.md
+    notes: File-backed single-writer Experiment/Attempt/Stage/Artifact persistence, start_or_recover with verified Stage reuse and epoch-boundary training resume, and cross-Experiment reuse of completed training, scientific-evaluation and performance Stages by Stage reuse key. No concurrent writers, mid-epoch recovery, or reuse-key coverage of code versions.
 
   - id: qec/dataset-pipeline
-    status: planned
-    implementation: contracts-only
+    status: available
+    implementation: partial
     spec: openspec/specs/qec/dataset-pipeline/spec.md
     evidence:
-      - ai_qec/data/
-      - ai_qec/qec/
-    notes: Types and Protocols only; no generator, identity hash, storage, registry, or resolver implementation.
+      - ai_qec/qec/codes/toric.py
+      - ai_qec/qec/backends/stim_noise.py
+      - ai_qec/data/generators/stim_code_capacity.py
+      - ai_qec/data/datasets/local.py
+      - ai_qec/data/loaders/pytorch.py
+      - tests/unit/test_stim_generator.py
+      - tests/unit/test_dataset_store.py
+      - openspec/changes/archive/2026-09-22-reproduce-torlai-melko-2017/verification.md
+    notes: Stim CPU toric code-capacity phase-flip generation, content-addressed immutable artifacts with verified reuse, and the PyTorch DataLoader H2D path. CUDA-Q GPU generation, GPU-to-GPU transfer, Qiskit circuits and circuit-level noise are not implemented.
 
   - id: qec/decoder-workbench
-    status: planned
-    implementation: contracts-only
+    status: available
+    implementation: partial
     spec: openspec/specs/qec/decoder-workbench/spec.md
     evidence:
-      - ai_qec/models/decoders/protocol.py
-    notes: Decoder request/result and Protocol only; no AI or classical decoder implementation.
+      - ai_qec/models/decoders/classical/pymatching_adapter.py
+      - ai_qec/models/decoders/generative/rbm_gibbs.py
+      - tests/unit/test_decoders.py
+      - openspec/changes/archive/2026-09-22-reproduce-torlai-melko-2017/verification.md
+    notes: PyMatching CPU MWPM baseline and PyTorch RBM Gibbs decoder behind DecodeRequest/DecodeResult, evaluated on toric code-capacity data only.
 
   - id: research/training-contracts
-    status: planned
-    implementation: contracts-only
+    status: available
+    implementation: partial
     spec: openspec/specs/research/training-contracts/spec.md
     evidence:
-      - ai_qec/training/
-    notes: Configuration and checkpoint contracts only; no trainer or distributed runtime implementation.
+      - ai_qec/training/trainers/pytorch_trainer.py
+      - ai_qec/training/execution_planner.py
+      - ai_qec/training/objectives/contrastive_divergence.py
+      - tests/unit/test_rbm_training.py
+      - tests/integration/test_local_runtime.py
+      - openspec/changes/archive/2026-09-22-reproduce-torlai-melko-2017/verification.md
+    notes: Single-device PyTorch CD-k trainer with separate ModelCheckpoint and TrainingRecoveryCheckpoint; bitwise resume verified on CPU. DDP, AMP and torch.compile are rejected before any Run is created.
 
   - id: research/scientific-evaluation
-    status: planned
-    implementation: contracts-only
+    status: available
+    implementation: partial
     spec: openspec/specs/research/scientific-evaluation/spec.md
     evidence:
-      - ai_qec/evaluation/scientific/
-    notes: Evaluation and gate contracts only; no metric or statistical decision implementation.
+      - ai_qec/evaluation/scientific/local.py
+      - ai_qec/evaluation/scientific/statistics.py
+      - tests/unit/test_statistics.py
+      - tests/unit/test_pipeline_and_gate.py
+      - tests/integration/test_local_runtime.py
+      - openspec/changes/archive/2026-09-22-reproduce-torlai-melko-2017/verification.md
+      - openspec/changes/archive/2026-09-22-add-relative-gate-and-stage-reuse/verification.md
+    notes: Wilson LER with declared invalid-sample policy, residual logical-class counts, and the paired non-inferiority Gate A with absolute or relative tolerance. Gate B and formal performance studies are not implemented.
 
   - id: research/paper-reproduction
-    status: planned
-    implementation: contracts-only
+    status: available
+    implementation: partial
     spec: openspec/specs/research/paper-reproduction/spec.md
     evidence:
-      - ai_qec/paper/
+      - ai_qec/paper/local_runtime.py
       - paper/srcs/ai_for_qec_workflow.ipynb
-    notes: Notebook orchestration source and Protocols only; no experiment runtime or paper reproduction result.
+      - tests/unit/test_paper_notebook.py
+      - openspec/changes/archive/2026-09-22-reproduce-torlai-melko-2017/verification.md
+    notes: The workflow notebook reproduces Torlai and Melko (2017) Fig. 3 and Fig. 4 on the local runtime; only this paper is covered.

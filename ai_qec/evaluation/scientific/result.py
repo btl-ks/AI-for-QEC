@@ -1,7 +1,8 @@
 """Auditable scientific metric and gate result values."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ class DecoderEvaluation:
     timeout_count: int
     not_converged_count: int
     metrics_artifact_id: str
+    logical_class_counts: Mapping[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
