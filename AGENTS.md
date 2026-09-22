@@ -44,6 +44,20 @@ openspec validate --all --strict --no-interactive
 - ModelCheckpoint 与 TrainingRecoveryCheckpoint 必须分离。
 - Scientific evaluation 与 performance evaluation 必须分离。
 - 没有实现、测试与 verification evidence 时，capability 必须保持 `planned`。
+- 所有由配置选择的实现必须通过 `REGISTRIES_BY_PATH` 对应 Registry 构造，不得在业务层散落第三方名称分支。
+- 字符串 `unresolved` 是唯一未决占位值；任何构造前必须 fail fast，只有当前阶段不消费的精确字段路径可以显式 allow。
+- Protocol 或 technology catalog 条目不得注册为可执行工厂；Registry 只登记真实可用实现。
+
+## Long-Running Execution
+
+- 预计超过几分钟的运行（执行论文 Notebook、训练网格、批量评估）必须用 `setsid nohup` 启动，与 agent 会话脱离，stdout/stderr 写入日志文件；不得作为 agent 会话的后台任务运行。编辑器窗口重载或会话结束会杀掉会话的整个进程树。
+- 启动后记录 PID 与日志路径，另起等待命令监视该 PID 结束；汇报结果前先读日志，并检查相关 Attempt 与 Stage 状态。
+- 运行被中断后，重新执行同一入口以创建恢复 Attempt；不得手工修改 `runs/` 中的 Attempt 或 Stage 记录。
+
+```bash
+# setsid 可能 fork，$! 不可靠；由进程自己写 PID，exec 保持同一 PID
+setsid nohup bash -c 'echo $$ > <pid-file>; exec <python> <entry>' > <log> 2>&1 < /dev/null &
+```
 
 ## Scope Discipline
 

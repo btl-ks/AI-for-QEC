@@ -1,18 +1,21 @@
 # Interface-only smoke configuration. No runner exists in this bootstrap repository.
 schema_version: "0.1-contract"
+technology_profile: v0-1
 qec:
   code_family: toric
   distance: 3
   rounds: 1
   logical_basis: Z
   circuit_family: code-capacity
+  circuit_adapter: qiskit-circuit
 noise:
   family: independent-phase-flip
+  adapter: stim-noise
   parameters:
     physical_error_rate: 0.05
 dataset:
-  generator: unspecified
-  generator_version: unspecified
+  generator: stim-syndrome-cpu
+  generator_version: unresolved
   backend_semantics: exact
   train_samples: 32
   validation_samples: 16

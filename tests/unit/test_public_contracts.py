@@ -120,6 +120,18 @@ class PublicContractTests(unittest.TestCase):
         self.assertEqual(decoder_result.logical_error_rate.denominator, 100)
         self.assertEqual(qec.GateDecision.PASS.value, "pass")
 
+    def test_contract_extensions_keep_backward_compatible_defaults(self) -> None:
+        training = qec.TrainingSpec("sgd", 0.1, 3, 32, "constant", "contrastive-divergence")
+        self.assertEqual(dict(training.optimizer_parameters), {})
+        self.assertEqual(dict(training.loss_parameters), {})
+        estimate = qec.MetricEstimate("logical_error_rate", 0.1, 1, 10, 0.95, 0.0, 0.4, "wilson")
+        evaluation = qec.DecoderEvaluation("mwpm", "ds", "sha256:x", estimate, 1, 0, 0, "metrics-1")
+        self.assertEqual(dict(evaluation.logical_class_counts), {})
+
+    def test_facade_publishes_only_the_real_runtime_entrypoint(self) -> None:
+        self.assertTrue(callable(qec.LocalNotebookPlatform))
+        self.assertIsNotNone(qec.NotebookPlatform)
+
     def test_scaffold_does_not_publish_fake_execution_entrypoints(self) -> None:
         self.assertFalse(hasattr(qec, "create_experiment"))
         self.assertFalse(hasattr(qec, "train"))

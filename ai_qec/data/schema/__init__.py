@@ -1,5 +1,5 @@
 """Transport-neutral data schemas."""
 
-from .batch import QECBatch
+from .batch import BatchLayout, BatchRepresentation, MemoryResidency, QECBatch
 
-__all__ = ["QECBatch"]
+__all__ = ["BatchLayout", "BatchRepresentation", "MemoryResidency", "QECBatch"]

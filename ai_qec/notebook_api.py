@@ -1,10 +1,22 @@
 """Stable public facade for notebooks and external experiment drivers.
 
-Only contracts are exported in the bootstrap repository. Concrete factories,
-generators, trainers, decoders, evaluators, and gates arrive through future
-OpenSpec-governed implementations.
+Importing this module loads only contracts and dependency-free helpers.
+``LocalNotebookPlatform`` loads the executable implementations (Stim, PyTorch,
+PyMatching) when it is constructed.
 """
 
+from ai_qec.config_validation import (
+    ConfigurationError,
+    MissingConfigurationError,
+    UnresolvedConfigurationError,
+    build_from_config,
+    find_unresolved,
+    get_config_path,
+    validate_config,
+    validate_no_unresolved,
+    validate_registered_selections,
+)
+from ai_qec.data.datasets.local import DatasetIntegrityError
 from ai_qec.data.datasets import (
     DatasetArtifact,
     DatasetIdentityProvider,
@@ -17,8 +29,17 @@ from ai_qec.data.datasets import (
     DatasetSpec,
     DatasetSplit,
 )
-from ai_qec.data.generators import QECDataGenerator
-from ai_qec.data.schema import QECBatch
+from ai_qec.data.generators import GeneratorDevice, QECDataGenerator, SyndromeGeneratorDescriptor
+from ai_qec.data.pipeline import (
+    CPUToGPUDataPipeline,
+    CPUToGPUPipelineSpec,
+    GPUToGPUDataPipeline,
+    GPUToGPUPipelineSpec,
+    TransferEvidence,
+)
+from ai_qec.data.schema import BatchLayout, BatchRepresentation, MemoryResidency, QECBatch
+from ai_qec.evaluation.scientific.local import AccuracyGateError, EvaluationError
+from ai_qec.evaluation.scientific.statistics import paired_difference_interval, wilson_interval
 from ai_qec.evaluation.scientific import (
     AccuracyGate,
     AccuracyGateSpec,
@@ -30,6 +51,8 @@ from ai_qec.evaluation.scientific import (
     ScientificEvaluationSpec,
     ScientificEvaluator,
 )
+from ai_qec.experiment.grid import GridPoint, config_grid, with_overrides
+from ai_qec.experiment.local import AttemptInProgressError, AttemptStateError
 from ai_qec.experiment import (
     ArtifactKind,
     ArtifactManifest,
@@ -49,10 +72,52 @@ from ai_qec.experiment import (
     StageStatus,
 )
 from ai_qec.models import ModelSpec
-from ai_qec.models.decoders import DecodeRequest, DecodeResult, DecodeStatus, Decoder
+from ai_qec.models.decoders import (
+    DecodeRequest,
+    DecodeResult,
+    DecodeStatus,
+    Decoder,
+    DecoderRuntimeDescriptor,
+)
 from ai_qec.paper import NotebookExperiment, NotebookPlatform, NotebookRun
-from ai_qec.qec import NoiseApproximation, NoiseSpec, QECSpec
+from ai_qec.paper.local_runtime import LocalNotebookPlatform
+from ai_qec.qec import NoiseApproximation, NoiseCompilation, NoiseCompiler, NoiseSpec, QECSpec
 from ai_qec.qec.backends import BackendCompatibility, QECBackend
+from ai_qec.qec.circuits import CircuitBuildResult, QECCircuitAdapter
+from ai_qec.registries import (
+    CIRCUITS,
+    CODES,
+    CPU_TO_GPU_PIPELINES,
+    DECODERS,
+    GENERATORS,
+    GPU_TO_GPU_PIPELINES,
+    LOSSES,
+    MODELS,
+    NOISE,
+    NOISE_ADAPTERS,
+    OPTIMIZERS,
+    REGISTRIES_BY_PATH,
+    SCHEDULERS,
+    TRAINERS,
+)
+from ai_qec.registry import (
+    DuplicateRegistrationError,
+    Registry,
+    RegistryError,
+    UnknownRegistrationError,
+)
+from ai_qec.reporting.figures import (
+    SweepPoint,
+    figure_png,
+    plot_decoder_comparison,
+    plot_failure_rate_sweep,
+    plot_logical_class_histograms,
+    plot_logical_classes,
+    plot_training_history,
+)
+from ai_qec.technology import TechnologyId, TechnologyImplementation
+from ai_qec.training.execution_planner import ExecutionConfigurationError
+from ai_qec.utils.paths import find_project_root
 from ai_qec.training import (
     ExecutionPlanner,
     ExecutionSpec,
@@ -64,6 +129,26 @@ from ai_qec.training.checkpoint import ModelCheckpoint, TrainingRecoveryCheckpoi
 
 __all__ = [
     "AccuracyGate",
+    "AccuracyGateError",
+    "AttemptInProgressError",
+    "AttemptStateError",
+    "DatasetIntegrityError",
+    "EvaluationError",
+    "ExecutionConfigurationError",
+    "LocalNotebookPlatform",
+    "SweepPoint",
+    "config_grid",
+    "figure_png",
+    "find_project_root",
+    "GridPoint",
+    "with_overrides",
+    "paired_difference_interval",
+    "plot_decoder_comparison",
+    "plot_failure_rate_sweep",
+    "plot_logical_class_histograms",
+    "plot_logical_classes",
+    "plot_training_history",
+    "wilson_interval",
     "AccuracyGateSpec",
     "ArtifactKind",
     "ArtifactManifest",
@@ -72,6 +157,16 @@ __all__ = [
     "Attempt",
     "AttemptStatus",
     "BackendCompatibility",
+    "BatchLayout",
+    "BatchRepresentation",
+    "CIRCUITS",
+    "CODES",
+    "CPUToGPUDataPipeline",
+    "CPUToGPUPipelineSpec",
+    "CPU_TO_GPU_PIPELINES",
+    "CircuitBuildResult",
+    "ConfigurationError",
+    "DECODERS",
     "DatasetArtifact",
     "DatasetIdentityProvider",
     "DatasetInstance",
@@ -87,26 +182,45 @@ __all__ = [
     "DecodeStatus",
     "Decoder",
     "DecoderEvaluation",
+    "DecoderRuntimeDescriptor",
+    "DuplicateRegistrationError",
     "ExecutionSpec",
     "ExecutionPlanner",
     "Experiment",
     "ExperimentFactory",
     "ExperimentSpec",
     "GateDecision",
+    "GENERATORS",
+    "GPUToGPUDataPipeline",
+    "GPUToGPUPipelineSpec",
+    "GPU_TO_GPU_PIPELINES",
+    "GeneratorDevice",
+    "LOSSES",
+    "MODELS",
     "MetricEstimate",
+    "MissingConfigurationError",
     "ModelCheckpoint",
     "ModelSpec",
     "NoiseApproximation",
+    "NoiseCompilation",
+    "NoiseCompiler",
     "NoiseSpec",
+    "NOISE",
+    "NOISE_ADAPTERS",
     "NotebookExperiment",
     "NotebookPlatform",
     "NotebookRun",
+    "OPTIMIZERS",
     "QECBackend",
     "QECBatch",
     "QECDataGenerator",
+    "QECCircuitAdapter",
     "QECSpec",
     "RandomStreamDescriptor",
     "RandomStreams",
+    "REGISTRIES_BY_PATH",
+    "Registry",
+    "RegistryError",
     "RecoveryPlan",
     "RecoverySource",
     "ResolvedExecutionPlan",
@@ -114,10 +228,25 @@ __all__ = [
     "ScientificEvaluationResult",
     "ScientificEvaluationSpec",
     "ScientificEvaluator",
+    "SCHEDULERS",
     "StageRecord",
     "StageRecorder",
     "StageStatus",
+    "SyndromeGeneratorDescriptor",
+    "TechnologyId",
+    "TechnologyImplementation",
+    "TRAINERS",
     "Trainer",
+    "TransferEvidence",
     "TrainingRecoveryCheckpoint",
     "TrainingSpec",
+    "UnknownRegistrationError",
+    "UnresolvedConfigurationError",
+    "build_from_config",
+    "find_unresolved",
+    "get_config_path",
+    "validate_config",
+    "validate_no_unresolved",
+    "validate_registered_selections",
+    "MemoryResidency",
 ]

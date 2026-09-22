@@ -39,3 +39,60 @@ Dataset resolver SHALL 在命中 registry 后验证 manifest 与内容完整性�
 #### Scenario: 后端不支持精确噪声
 - **WHEN** 请求的噪声模型无法由所选后端精确表示且未授权近似
 - **THEN** adapter SHALL 在生成任何数据前失败
+
+### Requirement: v0.1 QEC 后端矩阵
+v0.1 SHALL 选择 Qiskit 作为 circuit adapter、Stim 作为 CPU QEC 与 Stim-noise adapter、CUDA-Q 作为 GPU QEC adapter；syndrome generation SHALL 支持 Stim CPU 路径和 CUDA-Q GPU 路径。缺少选定 adapter 时系统 MUST 明确报告 capability unavailable，且 MUST NOT 静默切换后端。
+
+#### Scenario: 请求尚未实现的 CUDA-Q generator
+- **WHEN** 用户选择 CUDA-Q GPU syndrome generator 但 adapter 尚未实现或环境不兼容
+- **THEN** 系统 SHALL 在生成样本前失败并报告缺失的 technology/capability ID
+
+### Requirement: QECBatch 采用 Tensor-first 运行时
+AI pipeline 的主要运行时表示 SHALL 是 PyTorch Tensor；contract SHALL 同时能够描述 NumPy、bit-packed CPU buffer、PyTorch CUDA Tensor 和 DLPack 交换边界。任何表示转换 MUST 保留 sample identity、dataset identity、shape、dtype、device 和 provenance。
+
+#### Scenario: 持久化数据进入训练
+- **WHEN** bit-packed CPU 数据被加载到 PyTorch trainer
+- **THEN** pipeline SHALL 显式记录从持久化表示到 PyTorch Tensor 的转换，并保持 QECBatch 身份字段不变
+
+### Requirement: CPU 到 GPU 使用 PyTorch 标准流水线
+v0.1 CPU→GPU 路径 SHALL 使用 PyTorch Dataset/DataLoader，并支持 pinned memory、prefetch 与 non-blocking host-to-device transfer；DALI 和 Ray Data MUST NOT 成为 v0.1 的必需依赖。
+
+#### Scenario: Stim CPU batch 送入 CUDA trainer
+- **WHEN** Stim 在 CPU 产生 batch 且目标 trainer 位于 CUDA device
+- **THEN** pipeline SHALL 能声明 pinned-memory 与 non-blocking transfer policy，并将最终 CUDA device 记录在 batch layout 中
+
+### Requirement: GPU 到 GPU 优先零拷贝
+CUDA-Q→PyTorch CUDA 路径 SHALL 优先保持数据驻留 GPU，并 SHALL 优先使用兼容的 CUDA Tensor 或 DLPack 边界；GPU→CPU→GPU host staging MUST NOT 静默发生。
+
+#### Scenario: 零拷贝不可用
+- **WHEN** CUDA-Q 输出无法与 PyTorch 通过声明的 device/stream/interchange contract 安全共享
+- **THEN** pipeline MUST 拒绝该路径或显式记录 host-staging fallback，且不得把 fallback 报告为 zero-copy
+
+### Requirement: Toric code-capacity 相位翻转数据生成
+平台 SHALL 能够为 L×L 环面 toric code 在独立相位翻转 code-capacity 噪声下生成 train、validation、test 三个 split；每个样本 MUST 同时包含物理错误链、顶点 syndrome 和逻辑可观测量翻转，且各 split 使用由 dataset seed 派生的独立具名随机流。
+
+#### Scenario: 生成论文数据集
+- **WHEN** 配置选择 `toric` code、`independent-phase-flip` 噪声和 `stim-syndrome-cpu` generator
+- **THEN** 解析得到的 DatasetArtifact SHALL 含有样本数与 DatasetSpec 一致的三个 split，且每个样本 SHALL 包含 2L² 位物理错误、L² 位 syndrome 和 2 位逻辑可观测量
+
+#### Scenario: 请求 generator 不支持的语义
+- **WHEN** 配置请求多轮、circuit-level、非 X 基逻辑或 generator 不支持的噪声
+- **THEN** 系统 SHALL 在生成任何样本前失败并报告不支持的字段，且 MUST NOT 以近似语义生成数据
+
+### Requirement: 生成后端版本必须精确匹配
+`dataset.generator_version` SHALL 是一个明确版本；当安装的生成后端版本与之不一致时，系统 MUST 在创建 Run 或生成数据前失败，MUST NOT 静默使用另一版本。
+
+#### Scenario: 已安装后端版本不同
+- **WHEN** 配置声明的 generator 版本与运行环境中的后端版本不同
+- **THEN** 预检 SHALL 失败并同时报告声明版本和实际版本
+
+### Requirement: 提交前校验码语义一致性
+新生成的 DatasetArtifact SHALL 在提交前用与生成后端无关的码定义校验每个样本的 syndrome 等于物理错误的边界、逻辑可观测量等于物理错误与逻辑算符的奇偶性；任何不一致 MUST 阻止提交。消费已提交 split 前，平台 SHALL 重新校验分片 checksum。
+
+#### Scenario: 后端输出与码定义不一致
+- **WHEN** 暂存数据中任一样本的 syndrome 与其物理错误不一致
+- **THEN** 系统 MUST 拒绝提交并报告不一致的 split，registry SHALL 保持不变
+
+#### Scenario: 已提交分片被修改
+- **WHEN** 训练或评估读取的分片 checksum 与 manifest 记录不一致
+- **THEN** 读取 SHALL 失败并报告完整性错误，且 MUST NOT 使用该分片

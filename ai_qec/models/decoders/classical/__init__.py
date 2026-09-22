@@ -1,0 +1,1 @@
+"""Classical baseline decoder adapters."""

@@ -11,6 +11,17 @@ requires-python = ">=3.11"
 authors = [{ name = "AI-for-QEC contributors" }]
 dependencies = []
 
+[project.optional-dependencies]
+# Executable local runtime (Torlai–Melko paper workflow). Versions are those verified
+# in openspec/technology-catalog.yaml; Stim must equal dataset.generator_version.
+runtime = [
+    "numpy>=2.0",
+    "torch>=2.4",
+    "stim==1.16.0",
+    "pymatching>=2.2",
+    "matplotlib>=3.8",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["ai_qec"]
 
