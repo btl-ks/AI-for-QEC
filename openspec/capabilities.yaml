@@ -8,7 +8,8 @@ capabilities:
       - openspec/config.yaml
       - AGENTS.md
       - openspec/changes/archive/2026-09-22-bootstrap-contract-repository/verification.md
-    notes: OpenSpec workflow, archived canonical specs, strict validation, and verification evidence are present.
+      - openspec/changes/archive/2026-09-23-standardize-agent-workflow/verification.md
+    notes: OpenSpec workflow, user-intent authorization boundaries, requirement-to-evidence traceability, delivery gates, archived canonical specs, strict validation, and verification evidence are present.
 
   - id: governance/python-packaging
     status: validated
