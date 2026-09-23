@@ -50,7 +50,8 @@ openspec validate --all --strict --no-interactive
 
 ## Text Formatting
 
-- 所有面向读者的文本中的数学公式、数学变量和数学表达式必须使用 LaTeX 格式；Markdown 与 Jupyter Markdown 中的行内公式使用 `$...$`，独立公式使用 `$$...$$`，例如 `$Z_L^{(1)}$`。
+- 对话窗口中的回复不强制使用 LaTeX。简单变量、参数值、数量、单位、范围和倍数优先使用可直接阅读的普通文本，例如 `L=6`、`p=0.10`、`10,000 shots`、`7–8.5 s`、`5.3×`，避免在表格中显示未渲染的 `$...$` 或 `\mathrm{...}`。
+- 写入项目的 Markdown 与 Jupyter Markdown 文档时，真正需要数学排版的公式和表达式仍使用 LaTeX：行内公式使用 `$...$`，独立公式使用 `$$...$$`，例如 `$Z_L^{(1)}$`。简单参数和带单位的数据可以使用普通文本，以清晰、稳定渲染为准。
 - 程序标识符、配置字段、Registry key、命令和文件路径仍使用代码格式，不得误写为数学公式。
 
 ## Long-Running Execution
