@@ -5,7 +5,7 @@ import copy
 from dataclasses import dataclass
 import math
 
-from ai_qec.config_validation import ConfigurationError, MissingConfigurationError
+from ai_qec.registry.validation import ConfigurationError, MissingConfigurationError
 from ai_qec.data.datasets.spec import DatasetSpec
 from ai_qec.data.pipeline import CPUToGPUPipelineSpec
 from ai_qec.evaluation.scientific.spec import AccuracyGateSpec, ScientificEvaluationSpec

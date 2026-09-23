@@ -105,7 +105,7 @@ class DecoderTests(unittest.TestCase):
 @requires_runtime
 class ExecutionPlannerTests(unittest.TestCase):
     def setUp(self) -> None:
-        from ai_qec.implementations import load_builtin_implementations
+        from ai_qec.registry.bootstrap import load_builtin_implementations
 
         load_builtin_implementations()
 

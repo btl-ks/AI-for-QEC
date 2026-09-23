@@ -4,8 +4,8 @@ from collections.abc import Iterable, Mapping
 
 import torch
 
-from ai_qec.config_validation import ConfigurationError
-from ai_qec.registries import OPTIMIZERS, SCHEDULERS
+from ai_qec.registry.catalog import OPTIMIZERS, SCHEDULERS
+from ai_qec.registry.validation import ConfigurationError
 
 
 @OPTIMIZERS.register("sgd")

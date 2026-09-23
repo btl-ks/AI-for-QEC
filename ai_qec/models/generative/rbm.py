@@ -13,9 +13,9 @@ from collections.abc import Mapping
 
 import torch
 
-from ai_qec.config_validation import ConfigurationError
+from ai_qec.registry.validation import ConfigurationError
 from ai_qec.models.spec import ModelSpec
-from ai_qec.registries import MODELS
+from ai_qec.registry.catalog import MODELS
 from ai_qec.utils.hashing import sha256_json
 
 FAMILY_ID = "joint-error-syndrome-rbm"

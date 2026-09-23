@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 
-from ai_qec.config_validation import ConfigurationError
-from ai_qec.registries import NOISE
+from ai_qec.registry.catalog import NOISE
+from ai_qec.registry.validation import ConfigurationError
 
 from .noise import NoiseSpec
 

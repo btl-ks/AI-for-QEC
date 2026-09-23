@@ -3,8 +3,8 @@
 from collections.abc import Mapping
 from types import MappingProxyType
 
-from ai_qec.config_validation import ConfigurationError
-from ai_qec.registries import TRAINING_STEP_EXECUTORS
+from ai_qec.registry.catalog import TRAINING_STEP_EXECUTORS
+from ai_qec.registry.validation import ConfigurationError
 from ai_qec.technology import TechnologyId
 from ai_qec.training.executors.protocol import (
     TrainingStepContext,

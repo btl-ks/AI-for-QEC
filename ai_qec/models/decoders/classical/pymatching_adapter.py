@@ -9,7 +9,7 @@ from ai_qec.models.decoders.protocol import (
     DecodeStatus,
     DecoderRuntimeDescriptor,
 )
-from ai_qec.registries import DECODERS
+from ai_qec.registry.catalog import DECODERS
 from ai_qec.technology import TechnologyId
 
 

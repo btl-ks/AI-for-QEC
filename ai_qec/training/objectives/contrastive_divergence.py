@@ -4,8 +4,8 @@ from collections.abc import Mapping
 
 import torch
 
-from ai_qec.config_validation import ConfigurationError
-from ai_qec.registries import LOSSES
+from ai_qec.registry.catalog import LOSSES
+from ai_qec.registry.validation import ConfigurationError
 
 
 class ContrastiveDivergence:

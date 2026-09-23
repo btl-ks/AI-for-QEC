@@ -219,7 +219,7 @@ class LocalRuntimeTests(unittest.TestCase):
 
     @unittest.skipUnless(HAS_CUDA, "requires a CUDA-capable PyTorch runtime")
     def test_cuda_graph_capture_failure_fails_stage_without_model_fallback(self) -> None:
-        from ai_qec.registries import LOSSES
+        from ai_qec.registry.catalog import LOSSES
         from ai_qec.training.executors.cuda_graph import CUDAGraphExecutionError
 
         config = tiny_config(

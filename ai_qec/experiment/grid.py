@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import itertools
 from typing import Any
 
-from ai_qec.config_validation import ConfigurationError, MissingConfigurationError
+from ai_qec.registry.validation import ConfigurationError, MissingConfigurationError
 
 NAME_PATH = "experiment.name"
 

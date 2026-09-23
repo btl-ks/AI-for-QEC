@@ -18,6 +18,21 @@ class PackagingContractTests(unittest.TestCase):
         self.assertTrue((SOURCE_PACKAGE / "notebook_api.py").is_file())
         self.assertFalse((PROJECT_ROOT / "src" / "ai_qec").exists())
 
+    def test_registry_subsystem_uses_explicit_leaf_modules(self) -> None:
+        registry_package = SOURCE_PACKAGE / "registry"
+        self.assertEqual(
+            sorted(path.name for path in registry_package.glob("*.py")),
+            ["bootstrap.py", "catalog.py", "core.py", "validation.py"],
+        )
+        for old_module in (
+            "config_validation.py",
+            "implementations.py",
+            "registries.py",
+            "registry.py",
+        ):
+            with self.subTest(old_module=old_module):
+                self.assertFalse((SOURCE_PACKAGE / old_module).exists())
+
     def test_source_and_tests_have_no_init_files(self) -> None:
         init_files = sorted(
             path.relative_to(PROJECT_ROOT)
@@ -55,6 +70,10 @@ class PackagingContractTests(unittest.TestCase):
             "ai_qec.evaluation.scientific.result",
             "ai_qec.experiment.local",
             "ai_qec.models.decoders.protocol",
+            "ai_qec.registry.bootstrap",
+            "ai_qec.registry.catalog",
+            "ai_qec.registry.core",
+            "ai_qec.registry.validation",
             "ai_qec.training.executors.protocol",
         )
         for module_name in module_names:

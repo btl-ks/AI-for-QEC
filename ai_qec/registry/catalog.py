@@ -3,8 +3,7 @@
 from collections.abc import Mapping
 from types import MappingProxyType
 
-from ai_qec.registry import Registry
-
+from ai_qec.registry.core import Registry
 
 CODES = Registry[object]("qec.code_family")
 CIRCUITS = Registry[object]("qec.circuit_adapter")

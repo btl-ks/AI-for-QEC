@@ -13,7 +13,7 @@ from ai_qec.data.datasets.spec import DatasetSpec
 from ai_qec.data.schema.batch import BatchLayout, BatchRepresentation, MemoryResidency, QECBatch
 from ai_qec.qec.backends.protocol import BackendCompatibility
 from ai_qec.qec.noise import NoiseApproximation, NoiseCompilation
-from ai_qec.registries import GENERATORS
+from ai_qec.registry.catalog import GENERATORS
 from ai_qec.technology import TechnologyId
 from ai_qec.utils.hashing import derive_seed
 

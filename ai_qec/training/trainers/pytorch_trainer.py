@@ -20,7 +20,7 @@ from ai_qec.data.pipeline import TransferEvidence
 from ai_qec.data.schema.batch import QECBatch
 from ai_qec.experiment.artifact import ArtifactKind, ArtifactRef
 from ai_qec.models.spec import ModelSpec
-from ai_qec.registries import (
+from ai_qec.registry.catalog import (
     LOSSES,
     OPTIMIZERS,
     SCHEDULERS,

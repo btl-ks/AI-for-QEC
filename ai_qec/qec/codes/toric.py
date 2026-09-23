@@ -12,7 +12,7 @@ Wilson loops.
 """
 
 from ai_qec.qec.spec import QECSpec
-from ai_qec.registries import CODES
+from ai_qec.registry.catalog import CODES
 
 
 class ToricCode:

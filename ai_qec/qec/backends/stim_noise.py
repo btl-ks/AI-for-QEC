@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from ai_qec.registries import NOISE_ADAPTERS
+from ai_qec.registry.catalog import NOISE_ADAPTERS
 from ai_qec.technology import TechnologyId
 from ai_qec.utils.hashing import sha256_json
 

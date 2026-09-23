@@ -1,11 +1,10 @@
 """Fail-fast configuration checks used before any constructor has side effects."""
 
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import Final
+from typing import Final, cast
 
-from ai_qec.registries import REGISTRIES_BY_PATH
-from ai_qec.registry import Registry, UnknownRegistrationError
-
+from ai_qec.registry.catalog import REGISTRIES_BY_PATH
+from ai_qec.registry.core import Registry, UnknownRegistrationError
 
 UNRESOLVED: Final = "unresolved"
 _MISSING: Final = object()
@@ -33,13 +32,13 @@ def find_unresolved(value: object, path: str = "") -> Iterator[str]:
     """Yield complete paths whose exact string value is ``unresolved``."""
 
     if isinstance(value, Mapping):
-        for key, child in value.items():
+        for key, child in cast(Mapping[object, object], value).items():
             child_path = f"{path}.{key}" if path else str(key)
             yield from find_unresolved(child, child_path)
         return
 
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        for index, child in enumerate(value):
+        for index, child in enumerate(cast(Sequence[object], value)):
             child_path = f"{path}[{index}]" if path else f"[{index}]"
             yield from find_unresolved(child, child_path)
         return
@@ -68,18 +67,24 @@ def get_config_path(config: Mapping[str, object], path: str) -> object:
     traversed: list[str] = []
     for part in path.split("."):
         traversed.append(part)
-        if not isinstance(current, Mapping) or part not in current:
+        if not isinstance(current, Mapping):
             raise MissingConfigurationError((".".join(traversed),))
-        current = current[part]
+        mapping = cast(Mapping[object, object], current)
+        if part not in mapping:
+            raise MissingConfigurationError((".".join(traversed),))
+        current = mapping[part]
     return current
 
 
 def _optional_config_path(config: Mapping[str, object], path: str) -> object:
     current: object = config
     for part in path.split("."):
-        if not isinstance(current, Mapping) or part not in current:
+        if not isinstance(current, Mapping):
             return _MISSING
-        current = current[part]
+        mapping = cast(Mapping[object, object], current)
+        if part not in mapping:
+            return _MISSING
+        current = mapping[part]
     return current
 
 
@@ -102,7 +107,7 @@ def validate_registered_selections(
             continue
         values: tuple[object, ...]
         if isinstance(selected, Sequence) and not isinstance(selected, (str, bytes, bytearray)):
-            values = tuple(selected)
+            values = tuple(cast(Sequence[object], selected))
         else:
             values = (selected,)
         for value in values:

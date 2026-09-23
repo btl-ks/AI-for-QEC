@@ -129,7 +129,7 @@ class RegistryTests(unittest.TestCase):
 
     @requires_runtime
     def test_loaded_implementations_are_exactly_the_executable_ones(self) -> None:
-        from ai_qec.implementations import load_builtin_implementations
+        from ai_qec.registry.bootstrap import load_builtin_implementations
 
         registered = load_builtin_implementations()
         self.assertEqual(

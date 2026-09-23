@@ -4,7 +4,7 @@ from collections.abc import Iterator, Sequence
 
 from ai_qec.data.pipeline import CPUToGPUPipelineSpec, TransferEvidence
 from ai_qec.data.schema.batch import BatchLayout, BatchRepresentation, MemoryResidency, QECBatch
-from ai_qec.registries import CPU_TO_GPU_PIPELINES
+from ai_qec.registry.catalog import CPU_TO_GPU_PIPELINES
 from ai_qec.technology import TechnologyId
 
 ARRAY_FIELDS = ("detector_events", "observable_truth", "physical_errors")

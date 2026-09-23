@@ -4,9 +4,9 @@ import os
 import platform
 import sys
 
-from ai_qec.config_validation import ConfigurationError
-from ai_qec.registries import TRAINING_STEP_EXECUTORS
-from ai_qec.registry import RegistryError
+from ai_qec.registry.catalog import TRAINING_STEP_EXECUTORS
+from ai_qec.registry.core import RegistryError
+from ai_qec.registry.validation import ConfigurationError
 from ai_qec.training.executors.protocol import TrainingStepPlan
 from ai_qec.utils.hashing import sha256_json
 

@@ -5,7 +5,7 @@ Importing this module loads only contracts and dependency-free helpers.
 PyMatching) when it is constructed.
 """
 
-from ai_qec.config_validation import (
+from ai_qec.registry.validation import (
     ConfigurationError,
     MissingConfigurationError,
     UnresolvedConfigurationError,
@@ -75,7 +75,7 @@ from ai_qec.qec.backends.protocol import BackendCompatibility, QECBackend
 from ai_qec.qec.circuits.protocol import CircuitBuildResult, QECCircuitAdapter
 from ai_qec.qec.noise import NoiseApproximation, NoiseCompilation, NoiseCompiler, NoiseSpec
 from ai_qec.qec.spec import QECSpec
-from ai_qec.registries import (
+from ai_qec.registry.catalog import (
     CIRCUITS,
     CODES,
     CPU_TO_GPU_PIPELINES,
@@ -92,7 +92,7 @@ from ai_qec.registries import (
     TRAINERS,
     TRAINING_STEP_EXECUTORS,
 )
-from ai_qec.registry import (
+from ai_qec.registry.core import (
     DuplicateRegistrationError,
     Registry,
     RegistryError,

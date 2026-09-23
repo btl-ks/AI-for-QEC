@@ -21,7 +21,7 @@ from functools import partial
 from pathlib import Path
 import time
 
-from ai_qec.config_validation import ConfigurationError, build_from_config, validate_config
+from ai_qec.registry.validation import ConfigurationError, build_from_config, validate_config
 from ai_qec.data.datasets.artifact import DatasetArtifact
 from ai_qec.data.datasets.local import (
     LocalDatasetResolver,
@@ -59,9 +59,9 @@ from ai_qec.experiment.reuse import CROSS_EXPERIMENT_STAGES, PROVENANCE_KEYS, st
 from ai_qec.experiment.run import AttemptStatus
 from ai_qec.experiment.stage import StageRecord, StageStatus
 from ai_qec.experiment.streams import DerivedRandomStreams
-from ai_qec.implementations import load_builtin_implementations
+from ai_qec.registry.bootstrap import load_builtin_implementations
 from ai_qec.qec.noise import NoiseApproximation
-from ai_qec.registries import DECODERS, LOSSES, OPTIMIZERS
+from ai_qec.registry.catalog import DECODERS, LOSSES, OPTIMIZERS
 import ai_qec.reporting.figures as figures
 from ai_qec.training.checkpoint.model import ModelCheckpoint
 from ai_qec.training.checkpoint.recovery import TrainingRecoveryCheckpoint

@@ -8,7 +8,7 @@ the Registry decorators exactly once, because Python caches imported modules.
 
 import importlib
 
-from ai_qec.registries import REGISTRIES_BY_PATH
+from ai_qec.registry.catalog import REGISTRIES_BY_PATH
 
 IMPLEMENTATION_MODULES = (
     "ai_qec.qec.codes.toric",

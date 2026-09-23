@@ -35,7 +35,7 @@ Configure
 
 完整 primary/alternative/phase 状态以 `openspec/technology-catalog.yaml` 为准。DALI、Ray Data 和自定义 CUDA extension 不属于 v0.1 必需实现。
 
-配置中的待定选择统一使用字符串 `unresolved`。任何构造开始前必须调用配置预检；只有当前阶段明确不消费的完整字段路径才能通过 allow set 暂时放行。Registry 只登记真实可用的实现，且只在 `LocalNotebookPlatform` 构造时通过 `ai_qec.implementations.load_builtin_implementations()` 显式加载；导入 `ai_qec.notebook_api` 不会加载 torch、stim、pymatching、qiskit 或 cudaq。选中尚不可用的技术（例如 `qiskit-circuit`）会在创建任何目录前明确失败。
+配置中的待定选择统一使用字符串 `unresolved`。任何构造开始前必须调用配置预检；只有当前阶段明确不消费的完整字段路径才能通过 allow set 暂时放行。Registry 只登记真实可用的实现，且只在 `LocalNotebookPlatform` 构造时通过 `ai_qec.registry.bootstrap.load_builtin_implementations()` 显式加载；导入 `ai_qec.notebook_api` 不会加载 torch、stim、pymatching、qiskit 或 cudaq。选中尚不可用的技术（例如 `qiskit-circuit`）会在创建任何目录前明确失败。
 
 训练步由 `execution.step_executor` 选择 `pytorch-eager` 或 `pytorch-cuda-graph`。CUDA Graph
 实现按完整 batch signature 建立有界 graph cache，只保存 batch 级静态输入；现有 DataLoader 仍逐

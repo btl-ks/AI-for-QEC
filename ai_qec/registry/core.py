@@ -4,7 +4,6 @@ from collections.abc import Callable, Iterator, Mapping
 from types import MappingProxyType
 from typing import Generic, TypeVar
 
-
 T = TypeVar("T")
 Factory = Callable[..., T]
 
@@ -77,4 +76,3 @@ class Registry(Generic[T]):
 
     def __len__(self) -> int:
         return len(self._items)
-

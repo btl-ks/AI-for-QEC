@@ -56,7 +56,7 @@ class JointRBMTests(unittest.TestCase):
 
     def test_payload_round_trip_and_parameter_validation(self) -> None:
         torch = self.torch
-        from ai_qec.config_validation import ConfigurationError
+        from ai_qec.registry.validation import ConfigurationError
         from ai_qec.models.spec import ModelSpec
 
         payload = self.family.payload(
@@ -84,8 +84,8 @@ class JointRBMTests(unittest.TestCase):
 
     def test_contrastive_divergence_gradient_lowers_free_energy_of_data(self) -> None:
         torch = self.torch
-        from ai_qec.implementations import load_builtin_implementations
-        from ai_qec.registries import LOSSES, OPTIMIZERS
+        from ai_qec.registry.bootstrap import load_builtin_implementations
+        from ai_qec.registry.catalog import LOSSES, OPTIMIZERS
 
         load_builtin_implementations()
         objective = LOSSES.build("contrastive-divergence", parameters={"cd_steps": 1})
